@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net11.0-windows10.0.22000.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <WarpToolkitVersion>[0.*-preview*,)</WarpToolkitVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WarpToolkit.WinForms.AppServices" Version="$(WarpToolkitVersion)" />
+  </ItemGroup>
+
+
+</Project>
