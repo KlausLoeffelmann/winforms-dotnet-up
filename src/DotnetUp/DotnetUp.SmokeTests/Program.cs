@@ -19,6 +19,8 @@ internal static class Program
         {
             try
             {
+                CheckInventory();
+                CheckRepositoryDiscovery();
                 foreach (ShellKind shell in Enum.GetValues<ShellKind>())
                 {
                     await using HostedTerminal terminal = new(console);
@@ -56,6 +58,66 @@ internal static class Program
         if (!condition)
         {
             throw new InvalidOperationException(message);
+        }
+    }
+
+    private static void CheckInventory()
+    {
+        ManagedInventory inventory = ManagedInventory.Parse("""
+            {
+              "installSpecs": [{"component":"SDK","versionOrChannel":"lts","installRoot":"C:\\managed","source":"Explicit","future":42}],
+              "installations": [{"component":"SDK","version":"10.0.103","installRoot":"C:\\managed","architecture":"x64"}]
+            }
+            """);
+        Require(inventory.Specifications.Single().Channel == "lts", "Stored channel is distinct from installed version");
+        Require(inventory.Installations.Single().Value == "10.0.103", "Actual versions populate inventory");
+        try
+        {
+            ManagedInventory.Parse("{}");
+            throw new InvalidOperationException("Malformed inventory must not look like an empty successful result.");
+        }
+        catch (System.Text.Json.JsonException)
+        {
+        }
+
+        Console.WriteLine("PASS: structured dotnetup inventory and unsupported schema errors");
+    }
+
+    private static void CheckRepositoryDiscovery()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "DotnetUp.SmokeTests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            string repository = Path.Combine(folder, "repos", "example");
+            Directory.CreateDirectory(Path.Combine(repository, ".git"));
+            File.WriteAllText(Path.Combine(repository, ".git", "config"),
+                "[remote \"origin\"]\r\n url = git@github.com:example/project.git\r\n");
+            File.WriteAllText(Path.Combine(folder, "global.json"), """{"sdk":{"version":"10.0.103"}}""");
+            string unrelated = Path.Combine(folder, "unrelated");
+            Directory.CreateDirectory(Path.Combine(unrelated, ".git"));
+            File.WriteAllText(Path.Combine(unrelated, ".git", "config"),
+                "[remote \"origin\"]\r\n url = https://github.com.evil.example/repo\r\n");
+            RepositoryScan scan = RepositoryScanner.Scan(folder, null, CancellationToken.None);
+            Require(scan.Repositories.Count == 1, "Only genuine GitHub remotes are discovered");
+            RepositoryInfo repo = scan.Repositories.Single();
+            Require(repo.GlobalJson == Path.Combine(folder, "global.json"), "Nearest ancestor global.json is used");
+            Require(repo.GetDetails().Any(row => row.Name == "sdk.version" && row.Value == "10.0.103"), "Repository SDK details are displayed");
+            using CancellationTokenSource cancellation = new();
+            cancellation.Cancel();
+            try
+            {
+                RepositoryScanner.Scan(folder, null, cancellation.Token);
+                throw new InvalidOperationException("Discovery must observe cancellation.");
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            Console.WriteLine("PASS: GitHub discovery, SDK requirements and scan cancellation");
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
         }
     }
 }

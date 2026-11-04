@@ -10,12 +10,14 @@ public partial class MainForm
     protected override async void OnShown(EventArgs e)
     {
         base.OnShown(e);
+        InitializeNavigation();
         _terminal = new HostedTerminal(console);
         console.PromptSubmitted += Console_PromptSubmitted;
         try
         {
             await _terminal.StartAsync(_preferences.Shell);
             SetStatus("Terminal ready. Commands run in your user profile unless a repository is selected.");
+            await RefreshInventoryAsync();
         }
         catch (Exception ex)
         {
@@ -41,6 +43,10 @@ public partial class MainForm
             SetStatus("Running command...");
             CommandResult result = await _terminal.RunTextAsync(e.Text);
             ReportResult(result);
+            if (result.Succeeded && e.Text.Contains("dotnetup", StringComparison.OrdinalIgnoreCase))
+            {
+                await RefreshInventoryAsync();
+            }
         }
         catch (OperationCanceledException)
         {
@@ -66,6 +72,7 @@ public partial class MainForm
 
     private async void Stop_Click(object? sender, EventArgs e)
     {
+        _scanCancellation?.Cancel();
         try
         {
             if (_terminal is not null)
@@ -98,6 +105,7 @@ public partial class MainForm
 
     private async Task CloseTerminalAsync()
     {
+        _inventoryLifetime.Cancel();
         if (_terminal is not null)
         {
             await _terminal.DisposeAsync();

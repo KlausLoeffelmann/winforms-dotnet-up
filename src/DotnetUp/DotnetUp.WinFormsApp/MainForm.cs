@@ -129,7 +129,6 @@ public partial class MainForm : Form, IServiceProvider
         }
     }
 
-    private void Tree_AfterSelect(object? sender, TreeViewEventArgs e) => UpdateSelectionStatus();
     private void Details_SelectionChanged(object? sender, EventArgs e) => UpdateSelectionStatus();
 
     private void UpdateSelectionStatus()
@@ -158,7 +157,6 @@ public partial class MainForm : Form, IServiceProvider
     private void Exit_Click(object? sender, EventArgs e) => Close();
     private void Install_Click(object? sender, EventArgs e) => SetStatus("SDK installation is being configured.");
     private void Update_Click(object? sender, EventArgs e) => SetStatus("SDK updates are being configured.");
-    private void Refresh_Click(object? sender, EventArgs e) => SetStatus("Inventory refresh is being configured.");
     private async void Options_Click(object? sender, EventArgs e)
     {
         if (_terminal?.IsBusy == true)
