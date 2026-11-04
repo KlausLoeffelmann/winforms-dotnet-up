@@ -36,7 +36,10 @@ internal sealed partial class SdkTaskDialog : Form
         useGlobalJson.Checked, updateGlobalJson.Checked, migrate.Checked, includeRuntimes.Checked,
         overrideChannel.Checked, componentChoice.SelectedIndex switch
         {
-            1 => "runtime", 2 => "aspnetcore", 3 => "windowsdesktop", _ => "sdk"
+            1 => "runtime",
+            2 => "aspnetcore",
+            3 => "windowsdesktop",
+            _ => "sdk"
         });
 
     private void Input_Changed(object? sender, EventArgs e) => UpdatePreview();

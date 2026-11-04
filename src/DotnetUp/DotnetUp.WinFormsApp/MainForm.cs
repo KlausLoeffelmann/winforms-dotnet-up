@@ -65,7 +65,7 @@ public partial class MainForm : Form, IServiceProvider
         if (!_closing && _terminal is not null)
         {
             e.Cancel = true;
-            if (_terminal.IsBusy && MessageBox.Show(this,
+            if ((_terminal.IsBusy || _workflowRunning) && MessageBox.Show(this,
                 "A command is running. Stop it and close the application?", "dotnetup",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
             {
@@ -140,6 +140,11 @@ public partial class MainForm : Form, IServiceProvider
 
     private void ShowError(string message)
     {
+        if (_closing || IsDisposed)
+        {
+            return;
+        }
+
         messageStatus.Text = message;
         messageStatus.ToolTipText = message;
         messageStatus.ForeColor = Color.IndianRed;
@@ -147,6 +152,11 @@ public partial class MainForm : Form, IServiceProvider
 
     private void SetStatus(string message)
     {
+        if (_closing || IsDisposed)
+        {
+            return;
+        }
+
         messageStatus.Text = message;
         messageStatus.ToolTipText = message;
         messageStatus.ForeColor = SystemColors.ControlText;

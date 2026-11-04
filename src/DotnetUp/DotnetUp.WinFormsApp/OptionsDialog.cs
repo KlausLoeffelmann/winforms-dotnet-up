@@ -31,8 +31,11 @@ internal sealed partial class OptionsDialog : Form
         using FontDialog dialog = new()
         {
             Font = forConsole ? _selectedConsoleFont : _selectedUiFont,
-            MinSize = 6, MaxSize = 36, FixedPitchOnly = forConsole,
-            ShowEffects = false, FontMustExist = true
+            MinSize = 6,
+            MaxSize = 36,
+            FixedPitchOnly = forConsole,
+            ShowEffects = false,
+            FontMustExist = true
         };
         if (dialog.ShowDialog(this) != DialogResult.OK)
         {

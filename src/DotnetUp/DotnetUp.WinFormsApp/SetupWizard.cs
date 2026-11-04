@@ -7,8 +7,8 @@ internal sealed record SetupOptions(string Channel, string Mode, bool OnPath, bo
 internal sealed class SetupWizard : IDisposable
 {
     private readonly WizardContainer _wizard = new();
-    private readonly ComboBox _channel = new() { DropDownStyle = ComboBoxStyle.DropDownList };
-    private readonly ComboBox _mode = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly ComboBox _channel = new() { DropDownStyle = ComboBoxStyle.DropDownList, Anchor = AnchorStyles.Left | AnchorStyles.Right };
+    private readonly ComboBox _mode = new() { DropDownStyle = ComboBoxStyle.DropDownList, Anchor = AnchorStyles.Left | AnchorStyles.Right };
     private readonly CheckBox _onPath = new() { Text = "Add dotnetup to PATH (opt-in)", AutoSize = true };
     private readonly CheckBox _migrate = new() { Text = "Migrate matching system SDKs into dotnetup", AutoSize = true };
     private readonly CheckBox _install = new() { Text = "Install an initial SDK", Checked = true, AutoSize = true };
@@ -106,15 +106,25 @@ internal sealed class SetupWizard : IDisposable
         return commands;
     }
 
-    private static TableLayoutPanel Page() => new()
+    private static TableLayoutPanel Page()
     {
-        Dock = DockStyle.Fill, Padding = new Padding(12), ColumnCount = 1,
-        AutoScroll = true
-    };
+        TableLayoutPanel page = new()
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(12),
+            ColumnCount = 1,
+            AutoScroll = true
+        };
+        page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        return page;
+    }
 
     private static Label Paragraph(string text) => new()
     {
-        Text = text, AutoSize = true, Dock = DockStyle.Top, Margin = new Padding(3, 8, 3, 8)
+        Text = text,
+        AutoSize = true,
+        Dock = DockStyle.Top,
+        Margin = new Padding(3, 8, 3, 8)
     };
 
     public void Dispose() => _wizard.Dispose();

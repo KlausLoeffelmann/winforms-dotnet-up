@@ -25,7 +25,7 @@ public partial class MainForm
         }
         catch (Exception ex)
         {
-            ShowError($"Unable to start terminal: {ex.Message}");
+            ShowError($"Startup failed: {ex.Message}");
         }
     }
 
@@ -99,6 +99,12 @@ public partial class MainForm
 
     private async void RestartTerminal_Click(object? sender, EventArgs e)
     {
+        if (_workflowRunning)
+        {
+            ShowError("Wait for the current workflow before restarting the terminal.");
+            return;
+        }
+
         try
         {
             if (_terminal is not null)

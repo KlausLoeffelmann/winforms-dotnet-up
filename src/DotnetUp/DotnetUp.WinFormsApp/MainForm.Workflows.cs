@@ -91,7 +91,8 @@ public partial class MainForm
         DetailRow? selected = SelectedDetail;
         string? installPath = selected?.Kind is "Managed installation" or "Tracked requirement" ? selected.Location : null;
         using SdkTaskDialog dialog = new(executable, _preferences.Shell, _preferences.Channel,
-            update, SelectedRepository, installPath) { Font = Font };
+            update, SelectedRepository, installPath)
+        { Font = Font };
         if (dialog.ShowDialog(this) == DialogResult.OK)
         {
             await ExecutePlanAsync(DotnetUpCommands.Plan(executable, dialog.GetOptions()));
@@ -129,27 +130,26 @@ public partial class MainForm
             throw new InvalidOperationException("PowerShell 7 (pwsh.exe) is required for shell profile setup. Install it or select none.");
         }
 
-        if (_terminal is null)
-        {
-            throw new InvalidOperationException("The terminal is unavailable.");
-        }
-
+        HostedTerminal terminal = _terminal ?? throw new InvalidOperationException("The terminal is unavailable.");
         ShellKind originalShell = _preferences.Shell;
+        bool installedTool = false;
         try
         {
             if (SystemInventory.FindDotnetUp() is null)
             {
-                if (_terminal.Shell != ShellKind.PowerShell)
+                if (terminal.Shell != ShellKind.PowerShell)
                 {
-                    await _terminal.RestartAsync(ShellKind.PowerShell);
+                    await terminal.RestartAsync(ShellKind.PowerShell);
                 }
 
                 SetStatus("Installing dotnetup from Microsoft's installer...");
-                CommandResult bootstrap = await _terminal.RunTextAsync("$ErrorActionPreference = 'Stop'; " + DotnetUpCommands.Bootstrap);
+                CommandResult bootstrap = await terminal.RunTextAsync("$ErrorActionPreference = 'Stop'; " + DotnetUpCommands.Bootstrap);
                 if (!bootstrap.Succeeded)
                 {
                     throw new InvalidOperationException(bootstrap.LastError ?? "dotnetup download failed.");
                 }
+
+                installedTool = true;
             }
 
             string executable = RequireDotnetUp();
@@ -161,9 +161,9 @@ public partial class MainForm
         }
         finally
         {
-            if (_terminal.Shell != originalShell && !_terminal.IsBusy)
+            if (!_closing && (installedTool || terminal.Shell != originalShell) && !terminal.IsBusy)
             {
-                await _terminal.RestartAsync(originalShell);
+                await terminal.RestartAsync(originalShell);
             }
         }
     }

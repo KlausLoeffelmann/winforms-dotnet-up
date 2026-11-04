@@ -29,6 +29,7 @@ partial class OptionsDialog
         Button cancel = new Button();
         SuspendLayout();
         root.Dock = DockStyle.Fill;
+        root.AutoScroll = true;
         root.Padding = new Padding(12);
         root.ColumnCount = 1;
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));

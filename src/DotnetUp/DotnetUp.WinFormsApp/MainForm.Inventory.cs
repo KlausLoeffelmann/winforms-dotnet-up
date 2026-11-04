@@ -53,16 +53,18 @@ public partial class MainForm
                 CommandResult result = await _terminal.RunAsync(new ShellCommand(executable, args), captureJson: true);
                 if (!result.Succeeded)
                 {
-                    ReportResult(result);
-                    return;
+                    throw new InvalidOperationException(result.LastError ?? $"Inventory failed (exit {result.ExitCode}).");
                 }
 
                 _managed = ManagedInventory.Parse(result.Output);
             }
 
+            machine = machine.Where(row => !_managed.Installations.Any(managed =>
+                string.Equals(managed.Location.TrimEnd('\\'), row.Location.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))).ToArray();
             _sdkRows = machine.Concat(_managed.Installations).Concat(_managed.Specifications).ToArray();
             if (_sdkNode is not null)
             {
+                string? previousVersion = navigation.SelectedNode?.Parent == _sdkNode ? navigation.SelectedNode.Text : null;
                 _sdkNode.Nodes.Clear();
                 foreach (IGrouping<string, DetailRow> group in _sdkRows.GroupBy(row => row.Value)
                     .OrderByDescending(group => group.Key, StringComparer.OrdinalIgnoreCase))
@@ -71,6 +73,11 @@ public partial class MainForm
                     {
                         Tag = new NavigationItem("sdk", Value: group.ToArray())
                     });
+                }
+
+                if (previousVersion is not null)
+                {
+                    navigation.SelectedNode = _sdkNode.Nodes.Cast<TreeNode>().FirstOrDefault(node => node.Text == previousVersion) ?? _sdkNode;
                 }
             }
 
@@ -206,5 +213,22 @@ public partial class MainForm
     private async void Refresh_Click(object? sender, EventArgs e)
     {
         await RunWorkflowAsync(() => RefreshInventoryAsync());
+    }
+
+    private void Navigation_NodeMouseClick(object? sender, TreeNodeMouseClickEventArgs e)
+    {
+        if (e.Button == MouseButtons.Right)
+        {
+            navigation.SelectedNode = e.Node;
+        }
+    }
+
+    private void Details_CellMouseDown(object? sender, DataGridViewCellMouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Right && e.RowIndex >= 0)
+        {
+            details.ClearSelection();
+            details.Rows[e.RowIndex].Selected = true;
+        }
     }
 }

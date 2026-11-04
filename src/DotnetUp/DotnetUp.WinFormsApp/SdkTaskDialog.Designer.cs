@@ -28,6 +28,7 @@ partial class SdkTaskDialog
         Button cancel = new Button();
         SuspendLayout();
         root.Dock = DockStyle.Fill;
+        root.AutoScroll = true;
         root.Padding = new Padding(12);
         root.ColumnCount = 3;
         root.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -93,6 +94,7 @@ partial class SdkTaskDialog
         preview.ScrollBars = ScrollBars.Both;
         preview.WordWrap = false;
         preview.Dock = DockStyle.Fill;
+        preview.MinimumSize = new Size(100, 80);
         preview.AccessibleName = "Command preview";
         footer.AutoSize = true;
         footer.AutoSizeMode = AutoSizeMode.GrowAndShrink;

@@ -29,6 +29,11 @@ public static class DotnetUpCommands
             throw new ArgumentException("global.json installation requires a selected repository and the SDK component.");
         }
 
+        if (options.Component != "sdk" && options.Channel.Contains("xx", StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Feature bands apply to SDKs, not runtimes. Use a runtime channel or version.");
+        }
+
         if (options.UpdateGlobalJson && options.RepositoryPath is null)
         {
             throw new ArgumentException("Select a repository before changing global.json.");
@@ -48,7 +53,7 @@ public static class DotnetUpCommands
                 args.Add(options.Component == "sdk" ? options.Channel : $"{options.Component}@{options.Channel}");
             }
 
-            AddPath(args, options.InstallPath);
+            AddPath(args, options.InstallPath ?? (options.RepositoryPath is null ? SystemInventory.DefaultInstallRoot : null));
             if (options.Migrate)
             {
                 args.Add("--migrate-from-system");

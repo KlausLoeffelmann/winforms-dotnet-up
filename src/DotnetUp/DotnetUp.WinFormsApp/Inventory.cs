@@ -7,6 +7,7 @@ namespace DotnetUp.WinFormsApp;
 
 public sealed record DetailRow(string Name, string Value, string Kind, string Location, string Source)
 {
+    public string Information { get; init; } = "";
     [Browsable(false)] public string? Channel { get; init; }
     [Browsable(false)] public string? Component { get; init; }
     public override string ToString() => $"{Name}: {Value} - {Location}";
@@ -30,13 +31,20 @@ public sealed record ManagedInventory(IReadOnlyList<DetailRow> Specifications, I
                 Text(item, "installRoot"), Text(item, "source"))
             {
                 Channel = Text(item, "versionOrChannel"),
-                Component = Text(item, "component")
+                Component = Text(item, "component"),
+                Information = Text(item, "globalJsonPath")
             }).ToArray(),
             installs.EnumerateArray().Select(item => new DetailRow(
                 Text(item, "component"), Text(item, "version"), "Managed installation",
                 Text(item, "installRoot"), Text(item, "architecture"))
             {
-                Component = Text(item, "component")
+                Component = Text(item, "component"),
+                Information = item.TryGetProperty("isValid", out JsonElement validity) ? validity.ValueKind switch
+                {
+                    JsonValueKind.True => "Verified",
+                    JsonValueKind.False => $"Invalid: {Text(item, "validationFailure")}",
+                    _ => "Not verified"
+                } : "Not verified"
             }).ToArray());
     }
 
@@ -46,6 +54,10 @@ public sealed record ManagedInventory(IReadOnlyList<DetailRow> Specifications, I
 
 internal static class SystemInventory
 {
+    public static string DefaultInstallRoot => Path.Combine(
+        Environment.GetEnvironmentVariable("DOTNET_DOTNETUP_DATA_DIR")
+            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "dotnetup"), "dotnet");
+
     public static string? FindDotnetUp()
     {
         string? executable = HostedTerminal.FindExecutable("dotnetup.exe");
@@ -81,7 +93,8 @@ internal static class SystemInventory
         {
             foreach (string path in Directory.EnumerateFiles(root, "*.dll", new EnumerationOptions
             {
-                RecurseSubdirectories = true, IgnoreInaccessible = true,
+                RecurseSubdirectories = true,
+                IgnoreInaccessible = true,
                 AttributesToSkip = FileAttributes.ReparsePoint
             }))
             {
@@ -115,7 +128,8 @@ public sealed record RepositoryInfo(string Name, string Path, string Remote, str
         {
             using JsonDocument document = JsonDocument.Parse(File.ReadAllText(GlobalJson), new JsonDocumentOptions
             {
-                AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip
+                AllowTrailingCommas = true,
+                CommentHandling = JsonCommentHandling.Skip
             });
             rows.Add(new DetailRow("global.json", GlobalJson, "SDK requirement", Path, "Repository"));
             if (document.RootElement.TryGetProperty("sdk", out JsonElement sdk))

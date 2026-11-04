@@ -8,8 +8,13 @@ internal static class Program
     private static int _exitCode;
 
     [STAThread]
-    private static int Main()
+    private static int Main(string[] args)
     {
+        if (args.FirstOrDefault() == "--probe")
+        {
+            return RunProbe(args.Skip(1).ToArray());
+        }
+
         Application.SetHighDpiMode(HighDpiMode.SystemAware);
         Application.EnableVisualStyles();
         using Form host = new() { Width = 900, Height = 600, Text = "dotnetup regression checks" };
@@ -37,13 +42,17 @@ internal static class Program
                     Require(result.ExitCode == 7, $"{shell} preserves native exit code");
                     result = await terminal.RunTextAsync("echo typed-command").WaitAsync(TimeSpan.FromSeconds(30));
                     Require(result.Succeeded, $"{shell} accepts editable commands");
+                    await CheckTerminalPathsAsync(terminal, console, shell);
                     Console.WriteLine($"PASS: {shell} hosted terminal, output, failure and typed command");
                 }
+
+                await CheckApplicationUiAsync(host);
             }
             catch (Exception ex)
             {
                 _exitCode = 1;
                 Console.Error.WriteLine(ex);
+                Console.Error.WriteLine(console.OutputText);
             }
             finally
             {
@@ -157,5 +166,155 @@ internal static class Program
         }
 
         Console.WriteLine("PASS: documented SDK/setup plans, safe defaults and dialog-only channel overrides");
+    }
+
+    private static int RunProbe(string[] args)
+    {
+        switch (args.FirstOrDefault())
+        {
+            case "inventory":
+                Console.WriteLine("""{"installSpecs":[],"installations":[{"component":"SDK","version":"10.0.103","installRoot":"C:\\managed","architecture":"x64"}]}""");
+                return 0;
+            case "fail":
+                Console.WriteLine("A diagnostic before failure.");
+                Console.Error.WriteLine("precise-last-error");
+                return 23;
+            case "wait":
+                Thread.Sleep(15000);
+                return 0;
+            default:
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(args));
+                return 0;
+        }
+    }
+
+    private static async Task CheckTerminalPathsAsync(HostedTerminal terminal, D2DConsole console, ShellKind shell)
+    {
+        string executable = Environment.ProcessPath!;
+        CommandResult result = await terminal.RunAsync(new ShellCommand(executable, ["--probe", "inventory"]), captureJson: true)
+            .WaitAsync(TimeSpan.FromSeconds(30));
+        Require(result.Succeeded && ManagedInventory.Parse(result.Output).Installations.Count == 1,
+            $"{shell} captures real executable JSON output");
+        Require(console.OutputText.Contains("10.0.103"), $"{shell} captured JSON is also visible in terminal");
+        string[] values = ["spaces & apostrophe's", @"C:\space folder\", "unicode-\u00e4"];
+        result = await terminal.RunAsync(new ShellCommand(executable, ["--probe", .. values]), captureJson: true)
+            .WaitAsync(TimeSpan.FromSeconds(30));
+        Require(result.Succeeded && System.Text.Json.JsonSerializer.Deserialize<string[]>(result.Output)!.SequenceEqual(values),
+            $"{shell} preserves argument boundaries, Unicode and trailing backslashes");
+        result = await terminal.RunAsync(new ShellCommand(executable, ["--probe", "fail"]))
+            .WaitAsync(TimeSpan.FromSeconds(30));
+        Require(result.ExitCode == 23 && result.LastError?.Contains("precise-last-error") == true,
+            $"{shell} reports actual last error: {result.LastError}");
+        result = await terminal.RunTextAsync(shell == ShellKind.PowerShell ? "Write-Output 'unterminated" : "if (")
+            .WaitAsync(TimeSpan.FromSeconds(30));
+        Require(!result.Succeeded, $"{shell} malformed editable commands report failure without hanging");
+        Task<CommandResult> pending = terminal.RunAsync(new ShellCommand(executable, ["--probe", "wait"]));
+        await Task.Delay(300);
+        try
+        {
+            await terminal.RunTextAsync("echo must-not-overlap");
+            throw new InvalidOperationException("Overlapping commands must be rejected");
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("already running"))
+        {
+        }
+
+        await terminal.InterruptAsync();
+        try
+        {
+            await pending.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        await terminal.RestartAsync(shell);
+        result = await terminal.RunAsync(new ShellCommand(executable, ["--probe", "restarted"])).WaitAsync(TimeSpan.FromSeconds(30));
+        Require(result.Succeeded, $"{shell} can restart after cancellation");
+        Console.WriteLine($"PASS: {shell} JSON, quoting, errors, malformed input, serialization and cancellation/restart");
+    }
+
+    private static async Task CheckApplicationUiAsync(Form host)
+    {
+        using MainForm main = new();
+        main.Show(host);
+        WarpToolkit.WinForms.Containers.Wizard.WizardContainer? wizard = null;
+        await WaitUntilAsync(() =>
+        {
+            wizard = Application.OpenForms.Cast<Form>().SelectMany(Descendants)
+                .OfType<WarpToolkit.WinForms.Containers.Wizard.WizardContainer>().FirstOrDefault();
+            return wizard is not null;
+        }, "First launch opens the setup wizard");
+        Require(wizard!.PageCount == 3, "Setup offers welcome, choices and review pages");
+        Require(await wizard.GoNextAsync(), "Wizard can navigate to setup choices");
+        Require(await wizard.GoNextAsync(), "Wizard can navigate to command review");
+        string review = Descendants(wizard).OfType<TextBox>().Single(box => box.Multiline).Text;
+        Require(review.Contains("env") && review.Contains("none") && !review.Contains("'everywhere'"),
+            "First-run review shows the safe environment plan");
+        Form wizardForm = wizard.FindForm()!;
+        wizardForm.Close();
+        await WaitUntilAsync(() => wizardForm.IsDisposed, "Wizard can be postponed without executing installation");
+        MenuStrip menu = main.MainMenuStrip!;
+        Require(menu.Items.Cast<ToolStripItem>().Select(item => item.Text).SequenceEqual(["&File", "&Channel", "&Repository", "&Tools"]),
+            "All requested top-level menus are present");
+        ToolStripMenuItem channels = (ToolStripMenuItem)menu.Items[1];
+        Require(channels.DropDownItems.OfType<ToolStripMenuItem>().Single(item => item.Checked).Text == "lts",
+            "LTS is the conservative default");
+        TreeView tree = Descendants(main).OfType<TreeView>().Single();
+        Require(tree.Nodes[0].Text == "System"
+            && tree.Nodes[0].Nodes.Cast<TreeNode>().Select(node => node.Text).SequenceEqual(["GAC", ".NET SDKs", "Drive C", "Drive N"]),
+            "System navigation has GAC, SDKs and both drives");
+        DataGridView grid = Descendants(main).OfType<DataGridView>().Single();
+        Require(grid.GetType().Name == "WarpDataGridView", "Details use the actual WARP grid");
+        Require(grid.Rows.Count > 0, "System selection populates details");
+        grid.Rows[0].Selected = true;
+        StatusStrip status = Descendants(main).OfType<StatusStrip>().Single();
+        Require(status.Items[0].Text?.StartsWith("dotnetup:") == true, "Selected grid row takes status precedence");
+        Require(DateTime.TryParse(status.Items[^1].Text, out _), "Far-right status shows date and seconds");
+        using (SdkTaskDialog dialog = new("dotnetup.exe", ShellKind.PowerShell, "lts", false, null, null))
+        {
+            dialog.Show(host);
+            await Task.Delay(100);
+            Require(Descendants(dialog).OfType<TextBox>().Single(box => box.Multiline).Height >= 80,
+                "Install command preview has a usable viewport");
+            Require(Descendants(dialog).OfType<Button>().Where(button => button.Text is "&Run" or "Cancel")
+                .All(button => button.Visible && dialog.ClientRectangle.Contains(dialog.RectangleToClient(button.RectangleToScreen(button.ClientRectangle)))),
+                "Install dialog actions remain in the client area");
+            dialog.Close();
+        }
+
+        using (OptionsDialog options = new(new AppPreferences()))
+        {
+            options.Show(host);
+            await Task.Delay(100);
+            Require(Descendants(options).OfType<ComboBox>().Single().Items.Count == 2, "Options exposes both shell types");
+            options.Close();
+        }
+
+        main.Close();
+        await WaitUntilAsync(() => main.IsDisposed, "Application closes and disposes hosted terminal");
+        Console.WriteLine("PASS: real first-run wizard, menus, WARP grid, status precedence, dialogs and clean shutdown");
+    }
+
+    private static IEnumerable<Control> Descendants(Control root)
+    {
+        foreach (Control child in root.Controls)
+        {
+            yield return child;
+            foreach (Control descendant in Descendants(child))
+            {
+                yield return descendant;
+            }
+        }
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition, string message)
+    {
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(20));
+        while (!condition())
+        {
+            Require(!timeout.IsCancellationRequested, message);
+            await Task.Delay(50);
+        }
     }
 }

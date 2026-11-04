@@ -11,8 +11,10 @@ internal sealed partial class HostedTerminal(D2DConsole console) : IAsyncDisposa
     private readonly CancellationTokenSource _lifetime = new();
     private readonly SemaphoreSlim _commandGate = new(1, 1);
     private ConPtyConsoleSession? _session;
+    private RecordingConsoleSession? _recording;
     private CancellationTokenSource? _activeCommand;
-    private bool _exited;
+    private volatile bool _exited;
+    private readonly string _promptMarker = "dotnetup-" + Guid.NewGuid().ToString("N");
 
     public ShellKind Shell { get; private set; }
     public bool IsBusy => _activeCommand is not null;
@@ -28,10 +30,19 @@ internal sealed partial class HostedTerminal(D2DConsole console) : IAsyncDisposa
             UseShellExecute = false,
             WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
         };
+        string? dotnetup = SystemInventory.FindDotnetUp();
+        if (dotnetup is not null)
+        {
+            start.Environment["PATH"] = Path.GetDirectoryName(dotnetup) + Path.PathSeparator
+                + Environment.GetEnvironmentVariable("PATH");
+        }
+
         if (shell == ShellKind.PowerShell)
         {
             start.ArgumentList.Add("-NoLogo");
             start.ArgumentList.Add("-NoProfile");
+            start.ArgumentList.Add("-ExecutionPolicy");
+            start.ArgumentList.Add("Bypass");
             start.ArgumentList.Add("-NoExit");
         }
         else
@@ -39,12 +50,24 @@ internal sealed partial class HostedTerminal(D2DConsole console) : IAsyncDisposa
             start.ArgumentList.Add("/D");
             start.ArgumentList.Add("/Q");
             start.ArgumentList.Add("/V:OFF");
+            start.Environment["PROMPT"] = $"$E]133;A;{_promptMarker}$E\\$P$G";
         }
 
         _exited = false;
         _session = new ConPtyConsoleSession(start);
         _session.Exited += Session_Exited;
-        await console.AttachSession(_session, sendInputToSession: false, _lifetime.Token);
+        _recording = new RecordingConsoleSession(_session);
+        await console.AttachSession(_recording, sendInputToSession: false, _lifetime.Token);
+        if (shell == ShellKind.CommandPrompt)
+        {
+            using CancellationTokenSource ready = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+            ready.CancelAfter(TimeSpan.FromSeconds(15));
+            while (!ReadRecordedOutput().Contains(_promptMarker, StringComparison.Ordinal))
+            {
+                await Task.Delay(50, ready.Token);
+            }
+        }
+
         console.FocusPrompt();
     }
 
@@ -67,7 +90,6 @@ internal sealed partial class HostedTerminal(D2DConsole console) : IAsyncDisposa
         string resultPath = Path.Combine(folder, "exit.txt");
         string outputPath = Path.Combine(folder, "output.json");
         string scriptPath = Path.Combine(folder, Shell == ShellKind.PowerShell ? "command.ps1" : "command.cmd");
-        int outputStart = console.OutputText.Length;
         try
         {
             if (_session is null || _exited)
@@ -76,9 +98,22 @@ internal sealed partial class HostedTerminal(D2DConsole console) : IAsyncDisposa
             }
 
             Directory.CreateDirectory(folder);
+            _recording?.Clear();
             _activeCommand = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
             CancellationToken cancellation = _activeCommand.Token;
             string script = BuildScript(command, Shell, resultPath, captureJson ? outputPath : null, nativeCommand);
+            if (Shell == ShellKind.CommandPrompt)
+            {
+                await File.WriteAllTextAsync(Path.Combine(folder, "display.txt"), command + "\r\n",
+                    new UTF8Encoding(false), cancellation);
+            }
+
+            if (!nativeCommand && Shell == ShellKind.CommandPrompt)
+            {
+                await File.WriteAllTextAsync(Path.Combine(folder, "input.cmd"), command + "\r\n",
+                    new UTF8Encoding(false), cancellation);
+            }
+
             await File.WriteAllTextAsync(scriptPath, script, new UTF8Encoding(Shell == ShellKind.PowerShell), cancellation);
             string invocation = Shell == ShellKind.PowerShell
                 ? $". {ShellCommand.Quote(scriptPath, Shell)}\r"
@@ -99,16 +134,24 @@ internal sealed partial class HostedTerminal(D2DConsole console) : IAsyncDisposa
                     break;
                 }
 
+                if (Shell == ShellKind.CommandPrompt && ReadRecordedOutput().Contains(_promptMarker, StringComparison.Ordinal))
+                {
+                    // A cmd syntax error can abort every batch frame without executing their cleanup.
+                    exitCode = 1;
+                    break;
+                }
+
                 await Task.Delay(100, cancellation);
             }
 
+            await Task.Delay(100, cancellation);
             await console.FlushAsync(cancellation);
-            string screen = console.OutputText;
+            string screen = ReadRecordedOutput();
             string output = captureJson && File.Exists(outputPath)
                 ? await File.ReadAllTextAsync(outputPath, cancellation)
-                : screen[Math.Min(outputStart, screen.Length)..];
+                : EscapeCodes().Replace(screen, "");
             string? lastError = exitCode == 0 ? null
-                : EscapeCodes().Replace(screen[Math.Min(outputStart, screen.Length)..], "")
+                : EscapeCodes().Replace(screen, "")
                     .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
                     .LastOrDefault(line => !line.Contains("exit.txt", StringComparison.OrdinalIgnoreCase)
                         && !line.StartsWith("PS ", StringComparison.Ordinal) && !line.EndsWith('>'))?.Trim();
@@ -118,14 +161,23 @@ internal sealed partial class HostedTerminal(D2DConsole console) : IAsyncDisposa
         {
             _activeCommand?.Dispose();
             _activeCommand = null;
-            if (Directory.Exists(folder))
+            _recording?.Clear();
+            try
             {
-                Directory.Delete(folder, recursive: true);
+                if (Directory.Exists(folder))
+                {
+                    Directory.Delete(folder, recursive: true);
+                }
             }
-
-            _commandGate.Release();
+            finally
+            {
+                _commandGate.Release();
+            }
         }
     }
+
+    private string ReadRecordedOutput() => _recording is null ? ""
+        : string.Concat(_recording.Records.Where(record => !record.IsInput).Select(record => record.RawText));
 
     internal static string BuildScript(string command, ShellKind shell, string resultPath, string? outputPath, bool nativeCommand)
     {
@@ -135,16 +187,17 @@ internal sealed partial class HostedTerminal(D2DConsole console) : IAsyncDisposa
         {
             string output = outputPath is null ? "" : $"Get-Content -LiteralPath {ShellCommand.Quote(outputPath, shell)} -Raw\n";
             string code = nativeCommand ? "$LASTEXITCODE" : "$(if ($?) { 0 } else { 1 })";
+            string invocation = nativeCommand ? command : $". ([scriptblock]::Create({ShellCommand.Quote(command, shell)}))";
             return $"$global:LASTEXITCODE = 0\n$__dotnetupCode = 1\ntry {{\n"
-                + $"Write-Host {ShellCommand.Quote(command, shell)}\n{command}{capture}\n"
+                + $"Write-Host {ShellCommand.Quote(command, shell)}\n{invocation}{capture}\n"
                 + $"$__dotnetupCode = {code}\n{output}}} catch {{ Write-Error $_; $__dotnetupCode = 1 }}\n"
                 + $"finally {{ [IO.File]::WriteAllText({result}, [string]$__dotnetupCode) }}\n";
         }
 
-        string display = command.Replace("^", "^^").Replace("&", "^&").Replace("|", "^|")
-            .Replace("<", "^<").Replace(">", "^>");
+        string displayPath = ShellCommand.Quote(Path.Combine(Path.GetDirectoryName(resultPath)!, "display.txt"), shell);
         string print = outputPath is null ? "" : $"type {ShellCommand.Quote(outputPath, shell)}\r\n";
-        return $"@echo off\r\necho {display}\r\n{command}{capture}\r\n"
+        string execute = nativeCommand ? command : $"call {ShellCommand.Quote(Path.Combine(Path.GetDirectoryName(resultPath)!, "input.cmd"), shell)}";
+        return $"@echo off\r\nchcp 65001 >nul\r\ntype {displayPath}\r\n{execute}{capture}\r\n"
             + $"set \"__dotnetupCode=%errorlevel%\"\r\n{print}> {result} echo %__dotnetupCode%\r\n";
     }
 
@@ -182,7 +235,16 @@ internal sealed partial class HostedTerminal(D2DConsole console) : IAsyncDisposa
         if (_session is not null)
         {
             _session.Exited -= Session_Exited;
-            await _session.DisposeAsync();
+            if (_recording is not null)
+            {
+                await _recording.DisposeAsync();
+                _recording = null;
+            }
+            else
+            {
+                await _session.DisposeAsync();
+            }
+
             _session = null;
         }
     }
@@ -191,7 +253,10 @@ internal sealed partial class HostedTerminal(D2DConsole console) : IAsyncDisposa
     {
         _lifetime.Cancel();
         await StopSessionAsync();
+        await _commandGate.WaitAsync();
+        _commandGate.Release();
         _lifetime.Dispose();
+        _commandGate.Dispose();
     }
 
     public static string? FindExecutable(string name) =>
