@@ -11,6 +11,8 @@
 
   <ItemGroup>
     <PackageReference Include="WarpToolkit.WinForms.AppServices" Version="$(WarpToolkitVersion)" />
+    <PackageReference Include="WarpToolkit.WinForms.Specialized" Version="$(WarpToolkitVersion)" />
+    <PackageReference Include="WarpToolkit.WinForms.DirectX" Version="$(WarpToolkitVersion)" />
   </ItemGroup>
 
 

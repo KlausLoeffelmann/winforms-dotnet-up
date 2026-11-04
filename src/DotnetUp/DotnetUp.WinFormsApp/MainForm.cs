@@ -1,97 +1,146 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 using WarpToolkit.ComponentModel;
 using WarpToolkit.WinForms.Extensions.UI;
 
-namespace DotnetUp.WinFormsApp
+namespace DotnetUp.WinFormsApp;
+
+public partial class MainForm : Form, IServiceProvider
 {
-    /// <summary>
-    ///  Represents the main window of the application.
-    /// </summary>
-    public partial class MainForm : Form, IServiceProvider
+    private readonly IServiceProvider? _serviceProvider;
+    private readonly IUserSettingsService? _userSettingsService;
+    private AppPreferences _preferences = new();
+    private Font? _uiFont;
+    private Font? _consoleFont;
+
+    public MainForm()
     {
-        private readonly IUserSettingsService _userSettingsService = null!;
-
-        // The service provider is initialized in the constructor
-        // that takes an IServiceProvider parameter. Note: This serviceProvider
-        // is not available during InitializeComponent.
-        private readonly IServiceProvider _serviceProvider;
-
-        private static readonly string SettingsKey_MainFormBounds
-            = nameof(SettingsKey_MainFormBounds);
-
-        /// <summary>
-        ///  Initializes a new instance of the <see cref="MainForm"/> class.
-        /// </summary>
-        public MainForm()
+        InitializeComponent();
+        foreach (string channel in SdkChannels.Named)
         {
-            InitializeComponent();
-        }
-
-        /// <summary>
-        ///  Initializes a new instance of the <see cref="MainForm"/> class.
-        /// </summary>
-        /// <param name="serviceProvider">The application service provider.</param>
-        public MainForm(IServiceProvider serviceProvider)
-            : this()
-        {
-            ArgumentNullException.ThrowIfNull(serviceProvider);
-
-            _serviceProvider = new DeferredServiceProvider(serviceProvider);
-            _userSettingsService = serviceProvider.GetRequiredService<IUserSettingsService>();
-        }
-
-        /// <inheritdoc/>
-        protected override void OnLoad(EventArgs e)
-        {
-            base.OnLoad(e);
-
-            Bounds = _userSettingsService.Get(
-                key: SettingsKey_MainFormBounds,
-                defaultValue: this.CenterToScreen(
-                    horizontalFillGrade: 70,
-                    verticalFillGrade: 70));
-        }
-
-        /// <inheritdoc/>
-        protected override void OnFormClosing(FormClosingEventArgs e)
-        {
-            base.OnFormClosing(e);
-
-            _userSettingsService.Set(
-                key: SettingsKey_MainFormBounds,
-                value: Bounds);
-
-            _userSettingsService.Flush();
+            ToolStripMenuItem item = new(channel) { Tag = channel };
+            item.Click += Channel_Click;
+            channelMenu.DropDownItems.Add(item);
         }
     }
 
-    public static class FormExtensions
+    public MainForm(IServiceProvider serviceProvider) : this()
     {
-        static readonly Dictionary<WeakReference<Form>, IServiceProvider> _serviceProviders = [];
+        _serviceProvider = serviceProvider;
+        _userSettingsService = serviceProvider.GetRequiredService<IUserSettingsService>();
+    }
 
-        extension(Form form)
+    object? IServiceProvider.GetService(Type serviceType) => _serviceProvider?.GetService(serviceType);
+
+    protected override void OnLoad(EventArgs e)
+    {
+        base.OnLoad(e);
+        Bounds = _userSettingsService?.Get("SettingsKey_MainFormBounds",
+            this.CenterToScreen(horizontalFillGrade: 85, verticalFillGrade: 85)) ?? Bounds;
+        if (!Screen.AllScreens.Any(screen => screen.WorkingArea.IntersectsWith(Bounds)))
         {
-            // Register a service provider for a form
-            public void RegisterServiceProvider(IServiceProvider serviceProvider)
+            CenterToScreen();
+        }
+
+        try
+        {
+            _preferences = JsonSerializer.Deserialize<AppPreferences>(
+                _userSettingsService?.Get("Preferences", "{}") ?? "{}") ?? new();
+            _preferences.Validate();
+            ApplyPreferences();
+        }
+        catch (Exception ex) when (ex is JsonException or ArgumentException)
+        {
+            _preferences = new();
+            ApplyPreferences();
+            ShowError($"Invalid saved preferences: {ex.Message}");
+        }
+
+        UpdateClock();
+        clockTimer.Start();
+    }
+
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        base.OnFormClosing(e);
+        if (e.Cancel)
+        {
+            return;
+        }
+
+        _userSettingsService?.Set("SettingsKey_MainFormBounds",
+            WindowState == FormWindowState.Normal ? Bounds : RestoreBounds);
+        _userSettingsService?.Set("Preferences", JsonSerializer.Serialize(_preferences));
+        _userSettingsService?.Flush();
+    }
+
+    private void ApplyPreferences()
+    {
+        Font? previous = _uiFont;
+        _uiFont = new Font(_preferences.UiFontFamily, _preferences.UiFontSize);
+        Font = _uiFont;
+        previous?.Dispose();
+        previous = _consoleFont;
+        _consoleFont = new Font(_preferences.ConsoleFontFamily, _preferences.ConsoleFontSize);
+        console.Font = _consoleFont;
+        previous?.Dispose();
+        channelStatus.Text = $"Channel: {_preferences.Channel}";
+        foreach (ToolStripMenuItem item in channelMenu.DropDownItems)
+        {
+            item.Checked = Equals(item.Tag, _preferences.Channel);
+        }
+    }
+
+    private void Channel_Click(object? sender, EventArgs e)
+    {
+        if (sender is ToolStripMenuItem { Tag: string channel })
+        {
+            _preferences.Channel = channel;
+            channelStatus.Text = $"Channel: {channel}";
+            foreach (ToolStripMenuItem item in channelMenu.DropDownItems)
             {
-                ArgumentNullException.ThrowIfNull(serviceProvider);
-                WeakReference<Form> formReference = new(form);
-
-                _serviceProviders[formReference] = serviceProvider;
+                item.Checked = Equals(item.Tag, channel);
             }
+        }
+    }
 
-            // Retrieve the service provider for a form
-            public IServiceProvider? GetServiceProvider()
-            {
-                WeakReference<Form> formReference = new(form);
-                if (_serviceProviders.TryGetValue(formReference, out var serviceProvider))
-                {
-                    return serviceProvider;
-                }
+    private void Tree_AfterSelect(object? sender, TreeViewEventArgs e) => UpdateSelectionStatus();
+    private void Details_SelectionChanged(object? sender, EventArgs e) => UpdateSelectionStatus();
 
-                return null;
-            }
+    private void UpdateSelectionStatus()
+    {
+        selectionStatus.Text = details.SelectedRows.Count > 0
+            ? details.SelectedRows[0].DataBoundItem?.ToString() ?? navigation.SelectedNode?.Text ?? "System"
+            : navigation.SelectedNode?.Text ?? "System";
+    }
+
+    private void ShowError(string message)
+    {
+        messageStatus.Text = message;
+        messageStatus.ToolTipText = message;
+        messageStatus.ForeColor = Color.IndianRed;
+    }
+
+    private void SetStatus(string message)
+    {
+        messageStatus.Text = message;
+        messageStatus.ToolTipText = message;
+        messageStatus.ForeColor = SystemColors.ControlText;
+    }
+
+    private void ClockTimer_Tick(object? sender, EventArgs e) => UpdateClock();
+    private void UpdateClock() => clockStatus.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+    private void Exit_Click(object? sender, EventArgs e) => Close();
+    private void Install_Click(object? sender, EventArgs e) => SetStatus("SDK installation is being configured.");
+    private void Update_Click(object? sender, EventArgs e) => SetStatus("SDK updates are being configured.");
+    private void Refresh_Click(object? sender, EventArgs e) => SetStatus("Inventory refresh is being configured.");
+    private void Options_Click(object? sender, EventArgs e)
+    {
+        using OptionsDialog dialog = new(_preferences) { Font = Font };
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            dialog.ApplyTo(_preferences);
+            ApplyPreferences();
         }
     }
 }
