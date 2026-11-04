@@ -12,7 +12,7 @@ public sealed record ShellCommand(string Executable, IReadOnlyList<string> Argum
         if (WorkingDirectory is not null)
         {
             command = shell == ShellKind.PowerShell
-                ? $"Set-Location -LiteralPath {Quote(WorkingDirectory, shell)}; {command}"
+                ? $"Set-Location -LiteralPath {Quote(WorkingDirectory, shell)} -ErrorAction Stop; {command}"
                 : $"cd /d {Quote(WorkingDirectory, shell)} && {command}";
         }
 

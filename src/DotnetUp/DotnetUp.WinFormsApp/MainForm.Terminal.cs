@@ -18,6 +18,10 @@ public partial class MainForm
             await _terminal.StartAsync(_preferences.Shell);
             SetStatus("Terminal ready. Commands run in your user profile unless a repository is selected.");
             await RefreshInventoryAsync();
+            if (!_preferences.SetupCompleted)
+            {
+                await RunWorkflowAsync(RunSetupWizardAsync);
+            }
         }
         catch (Exception ex)
         {
@@ -37,6 +41,12 @@ public partial class MainForm
             if (_terminal.IsBusy)
             {
                 await console.SendInputAsync(e.Text + "\r");
+                return;
+            }
+
+            if (_workflowRunning)
+            {
+                ShowError("Wait for the current workflow before submitting a command.");
                 return;
             }
 

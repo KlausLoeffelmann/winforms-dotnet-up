@@ -155,11 +155,9 @@ public partial class MainForm : Form, IServiceProvider
     private void ClockTimer_Tick(object? sender, EventArgs e) => UpdateClock();
     private void UpdateClock() => clockStatus.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
     private void Exit_Click(object? sender, EventArgs e) => Close();
-    private void Install_Click(object? sender, EventArgs e) => SetStatus("SDK installation is being configured.");
-    private void Update_Click(object? sender, EventArgs e) => SetStatus("SDK updates are being configured.");
     private async void Options_Click(object? sender, EventArgs e)
     {
-        if (_terminal?.IsBusy == true)
+        if (_terminal?.IsBusy == true || _workflowRunning)
         {
             ShowError("Wait for the current command before changing terminal options.");
             return;

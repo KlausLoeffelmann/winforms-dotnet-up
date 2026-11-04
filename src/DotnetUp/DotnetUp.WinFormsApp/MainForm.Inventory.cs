@@ -205,13 +205,6 @@ public partial class MainForm
 
     private async void Refresh_Click(object? sender, EventArgs e)
     {
-        try
-        {
-            await RefreshInventoryAsync();
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
+        await RunWorkflowAsync(() => RefreshInventoryAsync());
     }
 }

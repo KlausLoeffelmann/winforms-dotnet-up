@@ -21,6 +21,7 @@ internal static class Program
             {
                 CheckInventory();
                 CheckRepositoryDiscovery();
+                CheckCommandPlans();
                 foreach (ShellKind shell in Enum.GetValues<ShellKind>())
                 {
                     await using HostedTerminal terminal = new(console);
@@ -119,5 +120,42 @@ internal static class Program
         {
             Directory.Delete(folder, recursive: true);
         }
+    }
+
+    private static void CheckCommandPlans()
+    {
+        AppPreferences preferences = new();
+        using SdkTaskDialog dialog = new("dotnetup.exe", ShellKind.PowerShell, preferences.Channel, false, null, null);
+        ComboBox channel = (ComboBox)typeof(SdkTaskDialog)
+            .GetField("channelChoice", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(dialog)!;
+        channel.Text = "preview";
+        Require(dialog.GetOptions().Channel == "preview" && preferences.Channel == "lts", "Dialog override does not persist");
+        IReadOnlyList<ShellCommand> plan = DotnetUpCommands.Plan("dotnetup.exe",
+            new SdkTaskOptions(true, "preview", OverrideUpdateChannel: true, IncludeRuntimes: true));
+        Require(plan.Count == 2 && plan[0].Arguments.Take(3).SequenceEqual(["sdk", "install", "preview"]),
+            "Update channel override installs explicitly first");
+        Require(plan[1].Arguments.Take(2).SequenceEqual(["sdk", "update"])
+            && !plan[1].Arguments.Contains("preview") && plan[1].Arguments.Contains("--all"),
+            "Update uses documented options, not an unsupported channel argument");
+        plan = DotnetUpCommands.Plan("dotnetup.exe",
+            new SdkTaskOptions(false, "lts", RepositoryPath: @"C:\repo", UseGlobalJson: true));
+        Require(!plan[0].Arguments.Contains("lts") && plan[0].WorkingDirectory == @"C:\repo",
+            "Repository install resolves nearest global.json without overriding its channel");
+        plan = SetupWizard.SetupCommands("dotnetup.exe", new SetupOptions("lts", "none", false, false, true));
+        Require(plan[1].Arguments.SequenceEqual(["env", "set", "none", "--dotnetup-on-path", "false"]),
+            "Safe setup does not modify PATH by default");
+        Require(plan.All(command => !command.Arguments.Contains("init") && !command.Arguments.Contains("everywhere")),
+            "Safe setup does not enter interactive recommended machine-wide mode");
+        try
+        {
+            DotnetUpCommands.Plan("dotnetup.exe", new SdkTaskOptions(false, "lts; Remove-Item"));
+            throw new InvalidOperationException("Channel shell syntax must be rejected");
+        }
+        catch (ArgumentException)
+        {
+        }
+
+        Console.WriteLine("PASS: documented SDK/setup plans, safe defaults and dialog-only channel overrides");
     }
 }
