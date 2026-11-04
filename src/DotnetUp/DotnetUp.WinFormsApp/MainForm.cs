@@ -60,8 +60,33 @@ public partial class MainForm : Form, IServiceProvider
         clockTimer.Start();
     }
 
-    protected override void OnFormClosing(FormClosingEventArgs e)
+    protected override async void OnFormClosing(FormClosingEventArgs e)
     {
+        if (!_closing && _terminal is not null)
+        {
+            e.Cancel = true;
+            if (_terminal.IsBusy && MessageBox.Show(this,
+                "A command is running. Stop it and close the application?", "dotnetup",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+            {
+                return;
+            }
+
+            _closing = true;
+            try
+            {
+                await CloseTerminalAsync();
+                BeginInvoke(Close);
+            }
+            catch (Exception ex)
+            {
+                _closing = false;
+                ShowError(ex.Message);
+            }
+
+            return;
+        }
+
         base.OnFormClosing(e);
         if (e.Cancel)
         {
@@ -134,13 +159,31 @@ public partial class MainForm : Form, IServiceProvider
     private void Install_Click(object? sender, EventArgs e) => SetStatus("SDK installation is being configured.");
     private void Update_Click(object? sender, EventArgs e) => SetStatus("SDK updates are being configured.");
     private void Refresh_Click(object? sender, EventArgs e) => SetStatus("Inventory refresh is being configured.");
-    private void Options_Click(object? sender, EventArgs e)
+    private async void Options_Click(object? sender, EventArgs e)
     {
+        if (_terminal?.IsBusy == true)
+        {
+            ShowError("Wait for the current command before changing terminal options.");
+            return;
+        }
+
         using OptionsDialog dialog = new(_preferences) { Font = Font };
         if (dialog.ShowDialog(this) == DialogResult.OK)
         {
+            ShellKind previousShell = _preferences.Shell;
             dialog.ApplyTo(_preferences);
             ApplyPreferences();
+            if (previousShell != _preferences.Shell && _terminal is not null)
+            {
+                try
+                {
+                    await _terminal.RestartAsync(_preferences.Shell);
+                }
+                catch (Exception ex)
+                {
+                    ShowError(ex.Message);
+                }
+            }
         }
     }
 }

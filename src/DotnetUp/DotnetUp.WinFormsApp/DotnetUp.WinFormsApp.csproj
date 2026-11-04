@@ -15,5 +15,8 @@
     <PackageReference Include="WarpToolkit.WinForms.DirectX" Version="$(WarpToolkitVersion)" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="DotnetUp.SmokeTests" />
+  </ItemGroup>
 
 </Project>
