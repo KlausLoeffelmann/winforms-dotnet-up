@@ -26,7 +26,7 @@ public partial class MainForm
         }
     }
 
-    private DetailRow? SelectedDetail => details.SelectedRows.Count > 0
+    private DetailRow? SelectedDetail => details.SelectedRows.Count == 1
         ? details.SelectedRows[0].DataBoundItem as DetailRow : null;
 
     private async Task RunWorkflowAsync(Func<Task> action)
@@ -211,7 +211,7 @@ public partial class MainForm
             DetailRow? row = SelectedDetail;
             if (row?.Kind != "Tracked requirement" || row.Channel is null)
             {
-                throw new InvalidOperationException("Select a tracked requirement row, not an installed version or external SDK.");
+                throw new InvalidOperationException("Select exactly one tracked requirement row, not an installed version or external SDK.");
             }
 
             if (MessageBox.Show(this, $"Remove tracked requirement {row.Name} {row.Channel} from {row.Location}?\r\n\r\n"

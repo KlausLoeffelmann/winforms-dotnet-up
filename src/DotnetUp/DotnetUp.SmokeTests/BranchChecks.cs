@@ -27,6 +27,7 @@ internal static partial class Program
         {
             await Git("init", "--initial-branch=main");
             await Git("config", "core.autocrlf", "false");
+            await Git("config", "core.hooksPath", Path.Combine(folder, ".empty-hooks"));
             GitBranchSnapshot empty = await GitBranches.ReadAsync(git, folder, Run);
             Require(empty.Branches.Count == 0, $"{shell} empty repositories have an empty branch list");
             string tracked = Path.Combine(folder, "tracked.txt");

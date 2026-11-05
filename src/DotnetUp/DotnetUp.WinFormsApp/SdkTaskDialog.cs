@@ -30,7 +30,6 @@ internal sealed partial class SdkTaskDialog : Form
         useGlobalJson.Checked = useGlobalJson.Enabled;
         updateGlobalJson.Enabled = repository?.GlobalJson is not null;
         configureLocal.Visible = dedicated;
-        configureLocal.Checked = dedicated && useGlobalJson.Enabled;
         scopeLabel.Text = repository is null ? "User-level managed installations (not Program Files)." : $"Workspace: {repository.Path}";
         if (dedicated)
         {

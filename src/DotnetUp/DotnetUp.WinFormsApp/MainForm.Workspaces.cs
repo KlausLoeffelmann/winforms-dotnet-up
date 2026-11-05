@@ -74,6 +74,7 @@ public partial class MainForm
                 case WorkspaceAction.InstallLocal:
                     RepositoryInfo context = SelectedWorkspace?.SdkContext() ?? SelectedRepository
                         ?? throw new InvalidOperationException("Select a solution or project first.");
+                    context = context with { GlobalJson = RepositoryScanner.FindGlobalJson(context.Path) };
                     using (SdkTaskDialog dialog = new(RequireDotnetUp(), _preferences.Shell, _preferences.Channel,
                         false, context, null, dedicated: true)
                     { Font = Font })
@@ -106,22 +107,23 @@ public partial class MainForm
                     break;
                 case WorkspaceAction.VsCode:
                     string code = WorkspaceTools.FindVsCode() ?? throw new FileNotFoundException("Visual Studio Code is not installed or on PATH.");
-                    await LaunchWorkspaceAsync(code);
+                    await LaunchWorkspaceAsync(code, openDirectory: true);
                     break;
             }
         });
     }
 
-    private async Task LaunchWorkspaceAsync(string executable)
+    private async Task LaunchWorkspaceAsync(string executable, bool openDirectory = false)
     {
         WorkspaceEntry workspace = SelectedWorkspace ?? throw new InvalidOperationException("Select a solution or project.");
+        string target = openDirectory ? workspace.DirectoryPath : workspace.Path;
         if (executable.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase))
         {
-            await ExecutePlanAsync([new ShellCommand(executable, [workspace.Path], workspace.DirectoryPath)], refresh: false);
+            await ExecutePlanAsync([new ShellCommand(executable, [target], workspace.DirectoryPath)], refresh: false);
         }
         else
         {
-            Process.Start(WorkspaceTools.LaunchInfo(executable, workspace.Path, workspace.DirectoryPath));
+            Process.Start(WorkspaceTools.LaunchInfo(executable, target, workspace.DirectoryPath));
             SetStatus($"Opened {workspace.Name} in {Path.GetFileNameWithoutExtension(executable)}.");
         }
     }

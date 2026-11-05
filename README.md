@@ -71,7 +71,7 @@ The **Workspace** menu, tree context menu and toolbar install a dedicated SDK
 (default `<workspace>\.dotnet`), reveal its location, open solution/project files
 in the internal WARP editor, or launch an installed Visual Studio version.
 Visual Studio discovery uses `vswhere` and excludes Build Tools-only installations.
-Projects can also open in VS Code. GitHub workspaces additionally enable visiting
+Projects can also open their containing folder in VS Code. GitHub workspaces additionally enable visiting
 the repository website. The terminal command uses the selected workspace directory.
 
 The dedicated install dialog can resolve an inherited `global.json` requirement

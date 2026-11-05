@@ -267,7 +267,11 @@ internal static partial class Program
                 Console.WriteLine("interactive-ready");
                 string? input = Console.ReadLine();
                 File.WriteAllText(args[1], System.Text.Json.JsonSerializer.Serialize(new
-                { Directory = Environment.CurrentDirectory, Input = input }));
+                {
+                    Directory = Environment.CurrentDirectory,
+                    Input = input,
+                    Branch = File.ReadAllText(Path.Combine(Environment.CurrentDirectory, ".git", "HEAD")).Trim()
+                }));
                 return 0;
             default:
                 Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(args));

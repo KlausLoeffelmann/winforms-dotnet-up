@@ -110,7 +110,8 @@ public partial class MainForm
         {
             "sdks" => _sdkRows,
             "sdk" when item.Value is DetailRow[] values => values,
-            "repository" when item.Value is RepositoryInfo repo => repo.GetDetails(),
+            "repository" when item.Value is RepositoryInfo repo =>
+                (repo with { GlobalJson = RepositoryScanner.FindGlobalJson(repo.Path) }).GetDetails(),
             "workspace" when item.Value is WorkspaceEntry workspace => workspace.GetDetails(),
             "gac" => await Task.Run(SystemInventory.GetGac, _inventoryLifetime.Token),
             "folder" => node.Nodes.Cast<TreeNode>()
