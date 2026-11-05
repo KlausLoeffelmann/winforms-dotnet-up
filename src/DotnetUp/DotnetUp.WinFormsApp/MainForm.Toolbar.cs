@@ -14,6 +14,19 @@ public partial class MainForm
         SetSymbol(updateSelectedButton, FluentSymbols.AllSymbols.Download);
         SetSymbol(refreshButton, FluentSymbols.AllSymbols.Refresh);
         SetSymbol(stopButton, FluentSymbols.AllSymbols.Stop);
+        SetSymbol(workspaceInstallButton, FluentSymbols.AllSymbols.Add);
+        SetSymbol(websiteButton, FluentSymbols.AllSymbols.Globe);
+        SetSymbol(folderButton, FluentSymbols.AllSymbols.FolderOpen);
+        SetSymbol(editorButton, FluentSymbols.AllSymbols.Edit);
+        SetSymbol(codeButton, FluentSymbols.AllSymbols.Code);
+        visualStudioButton.Image = RenderGlyph(FluentSymbols.AllSymbols.Project, Color.MediumPurple);
+        foreach (ToolStripItem item in new ToolStripItem[] { workspaceInstallButton, websiteButton, folderButton,
+            editorButton, visualStudioButton, codeButton })
+        {
+            item.DisplayStyle = ToolStripItemDisplayStyle.Image;
+            item.AccessibleName = item.Text;
+            item.ToolTipText = item.Text;
+        }
     }
 
     private void SetSymbol(SymbolToolStripButton item, Enum glyph)
@@ -32,5 +45,6 @@ public partial class MainForm
         }
 
         _toolbarFonts.Clear();
+        visualStudioButton.Image?.Dispose();
     }
 }

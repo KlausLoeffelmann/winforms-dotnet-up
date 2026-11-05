@@ -13,6 +13,7 @@ public partial class MainForm
         updateSelectedItem.Enabled = canUpdate;
         contextUpdateSelected.Enabled = canUpdate;
         updateSelectedButton.Enabled = canUpdate;
+        UpdateWorkspaceCommandState(ready);
     }
 
     private async void UpdateSelected_Click(object? sender, EventArgs e)

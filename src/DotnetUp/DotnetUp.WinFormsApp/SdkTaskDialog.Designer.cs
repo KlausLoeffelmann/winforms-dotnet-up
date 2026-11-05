@@ -21,6 +21,7 @@ partial class SdkTaskDialog
         updateGlobalJson = new CheckBox();
         migrate = new CheckBox();
         includeRuntimes = new CheckBox();
+        configureLocal = new CheckBox();
         Label note = new Label();
         preview = new TextBox();
         TableLayoutPanel footer = new TableLayoutPanel();
@@ -36,7 +37,8 @@ partial class SdkTaskDialog
         root.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         root.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        root.RowCount = 13;
+        root.RowCount = 14;
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -113,6 +115,11 @@ partial class SdkTaskDialog
         includeRuntimes.Appearance = Appearance.ToggleSwitch;
         includeRuntimes.Margin = new Padding(3, 8, 3, 8);
         includeRuntimes.CheckedChanged += Input_Changed;
+        configureLocal.Text = "Configure &local global.json (exact version required; retains values, reformats JSON)";
+        configureLocal.AutoSize = true;
+        configureLocal.Appearance = Appearance.ToggleSwitch;
+        configureLocal.Visible = false;
+        configureLocal.CheckedChanged += Input_Changed;
         note.Text = "Channel changes apply only to this dialog; the app default stays unchanged.\r\nInstalls create tracked requirements. Updates skip exact pinned versions.\r\nThe command preview below is executed visibly in the hosted terminal.";
         note.AutoSize = true;
         note.Dock = DockStyle.Fill;
@@ -175,11 +182,13 @@ partial class SdkTaskDialog
         root.SetColumnSpan(migrate, 3);
         root.Controls.Add(includeRuntimes, 0, 8);
         root.SetColumnSpan(includeRuntimes, 3);
-        root.Controls.Add(note, 0, 9);
+        root.Controls.Add(configureLocal, 0, 9);
+        root.SetColumnSpan(configureLocal, 3);
+        root.Controls.Add(note, 0, 10);
         root.SetColumnSpan(note, 3);
-        root.Controls.Add(preview, 0, 11);
+        root.Controls.Add(preview, 0, 12);
         root.SetColumnSpan(preview, 3);
-        root.Controls.Add(footer, 0, 12);
+        root.Controls.Add(footer, 0, 13);
         root.SetColumnSpan(footer, 3);
         Controls.Add(root);
         AutoScaleMode = AutoScaleMode.Font;
@@ -204,6 +213,7 @@ partial class SdkTaskDialog
     private CheckBox updateGlobalJson = null!;
     private CheckBox migrate = null!;
     private CheckBox includeRuntimes = null!;
+    private CheckBox configureLocal = null!;
     private TextBox preview = null!;
     private Button runButton = null!;
 }

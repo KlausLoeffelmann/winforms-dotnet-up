@@ -7,8 +7,24 @@ public partial class MainForm
 {
     private bool _workflowRunning;
 
-    private RepositoryInfo? SelectedRepository =>
-        navigation.SelectedNode?.Tag is NavigationItem { Value: RepositoryInfo repo } ? repo : null;
+    private RepositoryInfo? SelectedRepository
+    {
+        get
+        {
+            for (TreeNode? node = navigation.SelectedNode; node is not null; node = node.Parent)
+            {
+                if (node.Tag is NavigationItem { Value: RepositoryInfo repo })
+                {
+                    return repo;
+                }
+                if (node.Tag is NavigationItem { Value: WorkspaceEntry { Repository: { } workspaceRepo } })
+                {
+                    return workspaceRepo;
+                }
+            }
+            return null;
+        }
+    }
 
     private DetailRow? SelectedDetail => details.SelectedRows.Count > 0
         ? details.SelectedRows[0].DataBoundItem as DetailRow : null;
@@ -93,7 +109,7 @@ public partial class MainForm
         DetailRow? selected = SelectedDetail;
         string? installPath = selected?.Kind is "Managed installation" or "Tracked requirement" ? selected.Location : null;
         using SdkTaskDialog dialog = new(executable, _preferences.Shell, _preferences.Channel,
-            update, SelectedRepository, installPath)
+            update, null, installPath)
         { Font = Font };
         if (dialog.ShowDialog(this) == DialogResult.OK)
         {
@@ -223,15 +239,15 @@ public partial class MainForm
     private async void RepositoryTerminal_Click(object? sender, EventArgs e) =>
         await RunWorkflowAsync(async () =>
         {
-            RepositoryInfo repo = SelectedRepository ?? throw new InvalidOperationException("Select a repository first.");
+            string directory = SelectedWorkspaceDirectory ?? throw new InvalidOperationException("Select a solution, project or repository first.");
             if (_terminal is null)
             {
                 throw new InvalidOperationException("The terminal is unavailable.");
             }
 
             string command = _terminal.Shell == ShellKind.PowerShell
-                ? $"Set-Location -LiteralPath {ShellCommand.Quote(repo.Path, _terminal.Shell)}"
-                : $"cd /d {ShellCommand.Quote(repo.Path, _terminal.Shell)}";
+                ? $"Set-Location -LiteralPath {ShellCommand.Quote(directory, _terminal.Shell)}"
+                : $"cd /d {ShellCommand.Quote(directory, _terminal.Shell)}";
             CommandResult result = await _terminal.RunTextAsync(command);
             ReportResult(result);
             console.FocusPrompt();
@@ -244,13 +260,22 @@ public partial class MainForm
     {
         try
         {
-            string? path = globalJson ? SelectedRepository?.GlobalJson : SelectedRepository?.Path ?? SelectedDetail?.Location;
+            string? path = globalJson ? SelectedWorkspaceDirectory is { } directory ? RepositoryScanner.FindGlobalJson(directory) : null
+                : SelectedWorkspace?.Path ?? SelectedRepository?.Path ?? SelectedDetail?.Location;
             if (string.IsNullOrEmpty(path) || (!Directory.Exists(path) && !File.Exists(path)))
             {
                 throw new InvalidOperationException("Select an existing folder or a repository with global.json.");
             }
 
-            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+            if (!globalJson && File.Exists(path))
+            {
+                Process.Start(WorkspaceTools.LaunchInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe"),
+                    "/select," + path, Path.GetDirectoryName(path)!));
+            }
+            else
+            {
+                Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+            }
         }
         catch (Exception ex)
         {

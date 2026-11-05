@@ -3,7 +3,7 @@ using WarpToolkit.WinForms.DirectX.Controls;
 
 namespace DotnetUp.SmokeTests;
 
-internal static class Program
+internal static partial class Program
 {
     private static int _exitCode;
 
@@ -30,6 +30,7 @@ internal static class Program
                 CheckRepositoryDiscovery();
                 CheckCommandPlans();
                 CheckSelectedSdkUpdates();
+                await CheckWorkspaceToolsAsync(host);
                 foreach (ShellKind shell in args.Contains("--ui-only") ? Array.Empty<ShellKind>() : Enum.GetValues<ShellKind>())
                 {
                     await using HostedTerminal terminal = new(console);
@@ -368,7 +369,7 @@ internal static class Program
             "Wizard can be postponed without executing installation");
         Console.WriteLine("PASS: wizard font layout and cancellation");
         MenuStrip menu = main.MainMenuStrip!;
-        Require(menu.Items.Cast<ToolStripItem>().Select(item => item.Text).SequenceEqual(["&File", "&Channel", "&Repository", "&Tools"]),
+        Require(menu.Items.Cast<ToolStripItem>().Select(item => item.Text).SequenceEqual(["&File", "&Channel", "&Workspace", "&Tools"]),
             "All requested top-level menus are present");
         ToolStripMenuItem channels = (ToolStripMenuItem)menu.Items[1];
         Require(channels.DropDownItems.OfType<ToolStripMenuItem>().Single(item => item.Checked).Text == "lts",
@@ -407,6 +408,7 @@ internal static class Program
             "Multi-select enables matching toolbar, context and menu commands together");
         grid.ClearSelection();
         Require(!updateSelected.Enabled, "Clearing SDK selection disables update selected again");
+        await CheckWorkspaceActionsAsync(main, tree, toolbar);
         using (SdkTaskDialog dialog = new("dotnetup.exe", ShellKind.PowerShell, "lts", false, null, null))
         {
             dialog.Show(host);

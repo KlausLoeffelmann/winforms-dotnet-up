@@ -66,10 +66,29 @@ Discovery skips reparse points and dependency/build/SDK folders
 inaccessible folders. **Stop** cancels discovery; **Reset workspace discovery**
 allows another scan. Missing drives are reported without blocking startup.
 
-Selecting a repository shows its remote and nearest applicable `global.json`.
-The **Repository** menu and tree context menu install its required SDK, switch the
-terminal to its directory, or open its folder/configuration. Changing
-`global.json` is always opt-in. The grid context menu supports scoped updates and
+Selecting a workspace shows its metadata and nearest applicable `global.json`.
+The **Workspace** menu, tree context menu and toolbar install a dedicated SDK
+(default `<workspace>\.dotnet`), reveal its location, open solution/project files
+in the internal WARP editor, or launch an installed Visual Studio version.
+Visual Studio discovery uses `vswhere` and excludes Build Tools-only installations.
+Projects can also open in VS Code. GitHub workspaces additionally enable visiting
+the repository website. The terminal command uses the selected workspace directory.
+
+The dedicated install dialog can resolve an inherited `global.json` requirement
+or install the entered version/channel. **Configure local global.json** is opt-in:
+it requires an exact version or existing requirement and adds `sdk.paths` for the
+chosen installation root after a successful install. It retains other values,
+reformats JSON, preserves an existing local file's encoding, and never modifies
+an ancestor file. Conflicting external edits are rejected. Without that option,
+run the local root's `dotnet.exe` or configure `sdk.paths` yourself.
+The internal editor preserves Unicode encoding/BOM and newline conventions,
+prompts for unsaved changes, and refuses to overwrite externally changed files.
+
+Select one or more managed SDK rows to enable **Update selected SDKs to latest**
+in the File menu, grid context menu and toolbar. These install only the selected
+channel requirements/roots; installed exact versions target their major/minor
+line. No root-wide update runs, and existing pins/versions are retained.
+The grid context menu also supports
 uninstalling tracked requirements. Grid selection takes precedence over tree
 selection in the status strip; it also shows the channel, latest status/error,
 and local date/time with seconds.
