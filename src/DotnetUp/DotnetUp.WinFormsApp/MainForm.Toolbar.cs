@@ -19,9 +19,12 @@ public partial class MainForm
         SetSymbol(folderButton, FluentSymbols.AllSymbols.FolderOpen);
         SetSymbol(editorButton, FluentSymbols.AllSymbols.Edit);
         SetSymbol(codeButton, FluentSymbols.AllSymbols.Code);
+        SetSymbol(branchesButton, FluentSymbols.AllSymbols.Project);
+        SetSymbol(switchBranchButton, FluentSymbols.AllSymbols.Switch);
+        SetSymbol(copilotButton, FluentSymbols.AllSymbols.Robot);
         visualStudioButton.Image = RenderGlyph(FluentSymbols.AllSymbols.Project, Color.MediumPurple);
         foreach (ToolStripItem item in new ToolStripItem[] { workspaceInstallButton, websiteButton, folderButton,
-            editorButton, visualStudioButton, codeButton })
+            editorButton, visualStudioButton, codeButton, branchesButton, switchBranchButton, copilotButton })
         {
             item.DisplayStyle = ToolStripItemDisplayStyle.Image;
             item.AccessibleName = item.Text;

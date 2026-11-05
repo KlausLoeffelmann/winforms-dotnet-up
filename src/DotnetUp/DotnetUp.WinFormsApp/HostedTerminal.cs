@@ -80,7 +80,10 @@ internal sealed partial class HostedTerminal(D2DConsole console) : IAsyncDisposa
     public Task<CommandResult> RunTextAsync(string command) =>
         RunCoreAsync(command, captureJson: false, nativeCommand: false);
 
-    private async Task<CommandResult> RunCoreAsync(string command, bool captureJson, bool nativeCommand)
+    public Task<CommandResult> RunInteractiveAsync(ShellCommand command) =>
+        RunCoreAsync(command.Render(Shell), captureJson: false, nativeCommand: true, interactive: true);
+
+    private async Task<CommandResult> RunCoreAsync(string command, bool captureJson, bool nativeCommand, bool interactive = false)
     {
         if (!await _commandGate.WaitAsync(0))
         {
@@ -102,6 +105,11 @@ internal sealed partial class HostedTerminal(D2DConsole console) : IAsyncDisposa
             _recording?.Clear();
             _activeCommand = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
             BusyChanged?.Invoke(this, EventArgs.Empty);
+            if (interactive)
+            {
+                console.InputMode = ConsoleInputMode.SendToSession;
+                console.FocusOutput();
+            }
             CancellationToken cancellation = _activeCommand.Token;
             string script = BuildScript(command, Shell, resultPath, captureJson ? outputPath : null, nativeCommand);
             if (Shell == ShellKind.CommandPrompt)
@@ -163,18 +171,40 @@ internal sealed partial class HostedTerminal(D2DConsole console) : IAsyncDisposa
         {
             _activeCommand?.Dispose();
             _activeCommand = null;
+            if (interactive && !_lifetime.IsCancellationRequested)
+            {
+                console.InputMode = ConsoleInputMode.RaisePromptSubmitted;
+                console.FocusPrompt();
+            }
             BusyChanged?.Invoke(this, EventArgs.Empty);
             _recording?.Clear();
             try
             {
                 if (Directory.Exists(folder))
                 {
-                    Directory.Delete(folder, recursive: true);
+                    await DeleteCommandFolderAsync(folder);
                 }
             }
             finally
             {
                 _commandGate.Release();
+            }
+        }
+    }
+
+    private static async Task DeleteCommandFolderAsync(string folder)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            try
+            {
+                Directory.Delete(folder, recursive: true);
+                return;
+            }
+            // cmd can still hold its batch file briefly after publishing the exit code.
+            catch (IOException ex) when (attempt < 20 && (ex.HResult & 0xFFFF) is 32 or 33)
+            {
+                await Task.Delay(50);
             }
         }
     }

@@ -47,6 +47,7 @@ internal static partial class Program
                     result = await terminal.RunTextAsync("echo typed-command").WaitAsync(TimeSpan.FromSeconds(30));
                     Require(result.Succeeded, $"{shell} accepts editable commands");
                     await CheckTerminalPathsAsync(terminal, console, shell);
+                    await CheckGitBranchesAsync(terminal, console, shell);
                     Console.WriteLine($"PASS: {shell} hosted terminal, output, failure and typed command");
                 }
 
@@ -261,6 +262,12 @@ internal static partial class Program
                 return 23;
             case "wait":
                 Thread.Sleep(15000);
+                return 0;
+            case "interactive":
+                Console.WriteLine("interactive-ready");
+                string? input = Console.ReadLine();
+                File.WriteAllText(args[1], System.Text.Json.JsonSerializer.Serialize(new
+                { Directory = Environment.CurrentDirectory, Input = input }));
                 return 0;
             default:
                 Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(args));

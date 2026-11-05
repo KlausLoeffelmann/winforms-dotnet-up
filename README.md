@@ -93,6 +93,28 @@ uninstalling tracked requirements. Grid selection takes precedence over tree
 selection in the status strip; it also shows the channel, latest status/error,
 and local date/time with seconds.
 
+### Branches and Copilot
+
+GitHub containers have a **Branches** tree node. **Show branches** is also available
+from the Workspace menu, tree context menu and toolbar for a repository or one
+of its workspaces. The WARP grid lists local and cached remote-tracking branches,
+current branch, commit SHA/date/subject and current working-tree changes, ordered
+by newest commit. It does not fetch remote changes automatically.
+
+Select exactly one branch to enable **Switch to selected branch** or
+**Start Copilot on selected branch** in the menu, context menus and toolbar.
+Switching uses ordinary `git switch`; changes are never force-reset, stashed or
+discarded. A dirty working tree requires confirmation and Git refuses conflicting
+changes. A remote-only branch creates a local tracking branch; if that local name
+already exists, select it explicitly instead of overwriting it.
+
+Copilot must already be installed/on PATH. Its command first switches branches
+when necessary, then changes the terminal drive/directory to the repository and
+starts Copilot in that same visible terminal. Switch failures prevent launch.
+During the interactive session the output surface receives keyboard input;
+exiting restores the editable prompt. **Stop** interrupts the session.
+Git queries and mutations also run visibly in the hosted terminal.
+
 ## Hosted terminal and options
 
 Every GUI dotnetup operation runs in the visible hosted shell, including JSON
@@ -131,11 +153,14 @@ dotnet format src\DotnetUp\DotnetUp.slnx --verify-no-changes --no-restore
 ```
 
 The regression executable opens real WinForms controls and both ConPTY shells.
-It checks structured inventory, GitHub discovery and cancellation, documented
+It checks structured inventory, project/solution discovery and cancellation, documented
 command plans, dialog-only channel overrides, argument quoting, JSON capture,
 exit/error reporting, malformed commands, command serialization, cancellation and
 restart, first-run wizard navigation/cancellation, menus, selection status,
-dialogs, and terminal shutdown. It uses local fixtures and never runs the
+dialogs, dedicated SDK configuration, internal-editor file fidelity/conflicts,
+Git branch discovery and dirty-switch protection, remote tracking, interactive
+client launch and terminal shutdown. It uses local fixtures and a fake interactive
+client instead of starting authenticated Copilot. It never runs the
 network installer, changes PATH, or installs/removes real SDKs. It requires an
 interactive Windows desktop; Visual Studio Designer round-tripping, elevation,
 and actual network installation remain manual checks.

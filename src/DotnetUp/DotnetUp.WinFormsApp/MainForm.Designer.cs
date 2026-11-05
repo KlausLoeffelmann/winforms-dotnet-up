@@ -59,6 +59,14 @@ partial class MainForm
         ToolStripMenuItem contextVisualStudio = new ToolStripMenuItem("Open in &Visual Studio") { Tag = WorkspaceAction.VisualStudio };
         ToolStripMenuItem codeItem = new ToolStripMenuItem("Open project in VS &Code") { Tag = WorkspaceAction.VsCode };
         ToolStripMenuItem contextCode = new ToolStripMenuItem("Open project in VS &Code") { Tag = WorkspaceAction.VsCode };
+        ToolStripMenuItem branchesItem = new ToolStripMenuItem("Show &branches") { Tag = WorkspaceAction.Branches };
+        ToolStripMenuItem contextBranches = new ToolStripMenuItem("Show &branches") { Tag = WorkspaceAction.Branches };
+        ToolStripMenuItem switchItem = new ToolStripMenuItem("&Switch to selected branch") { Tag = WorkspaceAction.SwitchBranch };
+        ToolStripMenuItem contextSwitch = new ToolStripMenuItem("&Switch to selected branch") { Tag = WorkspaceAction.SwitchBranch };
+        ToolStripMenuItem copilotItem = new ToolStripMenuItem("Start &Copilot on selected branch") { Tag = WorkspaceAction.Copilot };
+        ToolStripMenuItem contextCopilot = new ToolStripMenuItem("Start &Copilot on selected branch") { Tag = WorkspaceAction.Copilot };
+        ToolStripMenuItem detailSwitch = new ToolStripMenuItem("&Switch to selected branch") { Tag = WorkspaceAction.SwitchBranch };
+        ToolStripMenuItem detailCopilot = new ToolStripMenuItem("Start &Copilot on selected branch") { Tag = WorkspaceAction.Copilot };
         ContextMenuStrip detailContext = new ContextMenuStrip(components);
         ToolStripMenuItem contextUpdate = new ToolStripMenuItem("&Update SDKs...");
         ToolStripMenuItem contextUninstall = new ToolStripMenuItem("Uninstall tracked &requirement...");
@@ -75,6 +83,9 @@ partial class MainForm
         editorButton = new WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton("Open in internal editor") { Tag = WorkspaceAction.Edit };
         codeButton = new WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton("Open project in VS Code") { Tag = WorkspaceAction.VsCode };
         visualStudioButton = new ToolStripDropDownButton("Open in Visual Studio") { Tag = WorkspaceAction.VisualStudio };
+        branchesButton = new WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton("Show branches") { Tag = WorkspaceAction.Branches };
+        switchBranchButton = new WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton("Switch to selected branch") { Tag = WorkspaceAction.SwitchBranch };
+        copilotButton = new WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton("Start Copilot on selected branch") { Tag = WorkspaceAction.Copilot };
         status = new StatusStrip();
         selectionStatus = new ToolStripStatusLabel("System");
         channelStatus = new ToolStripStatusLabel("Channel: lts");
@@ -131,6 +142,14 @@ partial class MainForm
         contextEditor.Click += WorkspaceAction_Click;
         codeItem.Click += WorkspaceAction_Click;
         contextCode.Click += WorkspaceAction_Click;
+        branchesItem.Click += WorkspaceAction_Click;
+        contextBranches.Click += WorkspaceAction_Click;
+        switchItem.Click += WorkspaceAction_Click;
+        contextSwitch.Click += WorkspaceAction_Click;
+        copilotItem.Click += WorkspaceAction_Click;
+        contextCopilot.Click += WorkspaceAction_Click;
+        detailSwitch.Click += WorkspaceAction_Click;
+        detailCopilot.Click += WorkspaceAction_Click;
         visualStudioItem.DropDownOpening += VisualStudio_DropDownOpening;
         contextVisualStudio.DropDownOpening += VisualStudio_DropDownOpening;
         visualStudioButton.DropDownOpening += VisualStudio_DropDownOpening;
@@ -138,7 +157,8 @@ partial class MainForm
         contextVisualStudio.DropDownItems.Add("Discover installed Visual Studio versions");
         visualStudioButton.DropDownItems.Add("Discover installed Visual Studio versions");
         repositoryMenu.DropDownItems.AddRange(new ToolStripItem[] { repoInstallItem, repoTerminalItem, repoFolderItem, repoJsonItem,
-            websiteItem, new ToolStripSeparator(), editorItem, visualStudioItem, codeItem });
+            websiteItem, new ToolStripSeparator(), editorItem, visualStudioItem, codeItem,
+            new ToolStripSeparator(), branchesItem, switchItem, copilotItem });
         contextInstall.Tag = WorkspaceAction.InstallLocal;
         contextTerminal.Tag = WorkspaceAction.Terminal;
         contextFolder.Tag = WorkspaceAction.Folder;
@@ -148,13 +168,15 @@ partial class MainForm
         contextFolder.Click += OpenFolder_Click;
         contextJson.Click += OpenGlobalJson_Click;
         repositoryContext.Items.AddRange(new ToolStripItem[] { contextInstall, contextTerminal, contextFolder, contextJson,
-            contextWebsite, new ToolStripSeparator(), contextEditor, contextVisualStudio, contextCode });
+            contextWebsite, new ToolStripSeparator(), contextEditor, contextVisualStudio, contextCode,
+            new ToolStripSeparator(), contextBranches, contextSwitch, contextCopilot });
         contextUpdate.Click += Update_Click;
         contextUninstall.Click += Uninstall_Click;
         contextDetailFolder.Click += OpenFolder_Click;
         contextUpdateSelected.Click += UpdateSelected_Click;
         contextUpdateSelected.Enabled = false;
-        detailContext.Items.AddRange(new ToolStripItem[] { contextUpdateSelected, contextUpdate, contextUninstall, contextDetailFolder });
+        detailContext.Items.AddRange(new ToolStripItem[] { contextUpdateSelected, contextUpdate, contextUninstall, contextDetailFolder,
+            new ToolStripSeparator(), detailSwitch, detailCopilot });
         menu.Items.AddRange(new ToolStripItem[] { fileMenu, channelMenu, repositoryMenu, toolsMenu });
         menu.Dock = DockStyle.Top;
         installButton.Click += Install_Click;
@@ -171,8 +193,12 @@ partial class MainForm
         folderButton.Click += WorkspaceAction_Click;
         editorButton.Click += WorkspaceAction_Click;
         codeButton.Click += WorkspaceAction_Click;
+        branchesButton.Click += WorkspaceAction_Click;
+        switchBranchButton.Click += WorkspaceAction_Click;
+        copilotButton.Click += WorkspaceAction_Click;
         toolbar.Items.AddRange(new ToolStripItem[] { installButton, updateButton, updateSelectedButton, new ToolStripSeparator(),
             workspaceInstallButton, websiteButton, folderButton, editorButton, visualStudioButton, codeButton,
+            new ToolStripSeparator(), branchesButton, switchBranchButton, copilotButton,
             new ToolStripSeparator(), refreshButton, stopButton });
         toolbar.Dock = DockStyle.Top;
         toolbar.AutoSize = true;
@@ -275,6 +301,9 @@ partial class MainForm
     private WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton editorButton = null!;
     private WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton codeButton = null!;
     private ToolStripDropDownButton visualStudioButton = null!;
+    private WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton branchesButton = null!;
+    private WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton switchBranchButton = null!;
+    private WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton copilotButton = null!;
     private WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton installButton = null!;
     private WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton updateButton = null!;
     private WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton refreshButton = null!;

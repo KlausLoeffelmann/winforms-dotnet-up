@@ -93,9 +93,16 @@ public partial class MainForm
 
     private async Task ShowNodeDetailsAsync(TreeNode? node)
     {
+        int request = ++_detailsRequest;
         if (node?.Tag is not NavigationItem item)
         {
             details.DataSource = null;
+            return;
+        }
+
+        if (item.Kind == "branches" && item.Value is RepositoryInfo branchRepo)
+        {
+            await RunWorkflowAsync(() => ShowBranchesAsync(branchRepo, request));
             return;
         }
 
@@ -121,7 +128,7 @@ public partial class MainForm
                 new DetailRow("GAC", ".NET Framework assemblies (read-only)", "System", "", "Separate from modern .NET SDKs")
             ]
         };
-        if (navigation.SelectedNode == node)
+        if (navigation.SelectedNode == node && request == _detailsRequest)
         {
             details.DataSource = rows.ToList();
             details.ClearSelection();
@@ -261,6 +268,15 @@ public partial class MainForm
                 ImageKey = icon,
                 SelectedImageKey = icon
             };
+            if (repo is not null)
+            {
+                folder.Nodes.Add(new TreeNode("Branches")
+                {
+                    Tag = new NavigationItem("branches", key, repo),
+                    ImageKey = "project",
+                    SelectedImageKey = "project"
+                });
+            }
             folders.Add(key, folder);
             parent.Nodes.Add(folder);
             return folder;

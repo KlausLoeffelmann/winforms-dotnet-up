@@ -4,13 +4,14 @@ namespace DotnetUp.WinFormsApp;
 
 public partial class MainForm
 {
-    private enum WorkspaceAction { InstallLocal, Website, Folder, Edit, VisualStudio, VsCode, Terminal, GlobalJson }
+    private enum WorkspaceAction { InstallLocal, Website, Folder, Edit, VisualStudio, VsCode, Terminal, GlobalJson, Branches, SwitchBranch, Copilot }
     private WorkspaceEntry? SelectedWorkspace => (navigation.SelectedNode?.Tag as NavigationItem)?.Value as WorkspaceEntry;
     private string? SelectedWorkspaceDirectory => SelectedWorkspace?.DirectoryPath ?? SelectedRepository?.Path;
     private IReadOnlyList<VisualStudioInstance>? _visualStudio;
 
     private IEnumerable<ToolStripItem> WorkspaceActionItems =>
         Descendants(menu.Items).Concat(Descendants(repositoryContext.Items)).Concat(Descendants(toolbar.Items))
+            .Concat(details.ContextMenuStrip is { } context ? Descendants(context.Items) : [])
             .Where(item => item.Tag is WorkspaceAction);
 
     private static IEnumerable<ToolStripItem> Descendants(ToolStripItemCollection items)
@@ -36,6 +37,9 @@ public partial class MainForm
             item.Enabled = ready && (WorkspaceAction)item.Tag! switch
             {
                 WorkspaceAction.Website => SelectedRepository is not null,
+                WorkspaceAction.Branches => SelectedRepository is not null,
+                WorkspaceAction.SwitchBranch => SelectedBranch is { IsCurrent: false },
+                WorkspaceAction.Copilot => SelectedBranch is not null,
                 WorkspaceAction.Folder or WorkspaceAction.Terminal => SelectedWorkspaceDirectory is not null,
                 WorkspaceAction.InstallLocal => workspace is not null || SelectedRepository is not null,
                 WorkspaceAction.Edit or WorkspaceAction.VisualStudio => workspace is { Kind: WorkspaceKind.Solution or WorkspaceKind.Project },
@@ -57,6 +61,16 @@ public partial class MainForm
         {
             switch (action)
             {
+                case WorkspaceAction.Branches:
+                    await ShowBranchesAsync(SelectedRepository ?? throw new InvalidOperationException("Select a GitHub repository."),
+                        ++_detailsRequest);
+                    break;
+                case WorkspaceAction.SwitchBranch:
+                    await SwitchSelectedBranchAsync(startCopilot: false);
+                    break;
+                case WorkspaceAction.Copilot:
+                    await SwitchSelectedBranchAsync(startCopilot: true);
+                    break;
                 case WorkspaceAction.InstallLocal:
                     RepositoryInfo context = SelectedWorkspace?.SdkContext() ?? SelectedRepository
                         ?? throw new InvalidOperationException("Select a solution or project first.");

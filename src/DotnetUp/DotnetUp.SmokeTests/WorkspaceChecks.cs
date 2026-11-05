@@ -131,6 +131,19 @@ internal static partial class Program
             await Task.Delay(50);
             Require(toolbar.Items.Cast<ToolStripItem>().Single(item => item.Text == "Visit GitHub website").Enabled,
                 "Workspace nodes inherit their GitHub repository actions");
+            DataGridView grid = Descendants(main).OfType<DataGridView>().Single();
+            grid.DataSource = new List<GitBranch> {
+                new("main", false, true, "", "abc", "Current", 0, "refs/heads/main", path),
+                new("feature", false, false, "", "def", "Feature", 0, "refs/heads/feature", path) };
+            grid.ClearSelection();
+            grid.Rows[1].Selected = true;
+            Require(toolbar.Items.Cast<ToolStripItem>().Single(item => item.Text == "Switch to selected branch").Enabled
+                && toolbar.Items.Cast<ToolStripItem>().Single(item => item.Text == "Start Copilot on selected branch").Enabled
+                && grid.ContextMenuStrip!.Items.Cast<ToolStripItem>().Where(item => item.Text!.Contains("selected branch")).All(item => item.Enabled),
+                "A selected non-current branch enables switch and Copilot commands");
+            grid.Rows[0].Selected = true;
+            Require(!toolbar.Items.Cast<ToolStripItem>().Single(item => item.Text == "Start Copilot on selected branch").Enabled,
+                "Multiple branches cannot start an ambiguous Copilot session");
             tree.SelectedNode = tree.Nodes[0];
             node.Remove();
             github.Remove();

@@ -4,7 +4,8 @@ public sealed record ShellCommand(string Executable, IReadOnlyList<string> Argum
 {
     public string Render(ShellKind shell)
     {
-        string command = (shell == ShellKind.PowerShell ? "& " : "")
+        bool batch = Executable.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase) || Executable.EndsWith(".bat", StringComparison.OrdinalIgnoreCase);
+        string command = (shell == ShellKind.PowerShell ? "& " : batch ? "call " : "")
             + string.Join(" ", new[] { Executable }.Concat(Arguments).Select(value =>
                 shell == ShellKind.CommandPrompt
                     ? QuoteArgument(value)
