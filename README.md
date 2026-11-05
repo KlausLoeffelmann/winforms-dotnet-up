@@ -54,10 +54,16 @@ Cancel postpones setup; reopen it from **Tools / Setup wizard**.
 
 The left tree contains **System / GAC / .NET SDKs / Drive C / Drive N**. SDK nodes
 show actual versions and tracked requirements. Expanding a drive asynchronously
-discovers repositories with GitHub remotes, grouping them under their parent
-folders. Discovery includes worktrees, skips reparse points and dependency/build
-folders (`.git`, `.vs`, `.nuget`, `node_modules`, `bin`, `obj`), and reports
-inaccessible folders. **Stop** cancels discovery; **Reset repository discovery**
+discovers Visual Studio/.NET solutions (`.sln`/`.slnx`), projects (`*proj`) and
+ASP.NET application folders (`web.config`, `Global.asax`, or `wwwroot` with
+`appsettings.json`). GitHub repositories, including worktrees, are marked with
+the GitHub icon, not required for discovery. The tree preserves enclosing folders;
+solutions expand into their referenced projects, never source files.
+Explicit solution references may point beyond the crawl depth; opening a solution
+reads these references without recursively scanning their directories.
+Discovery skips reparse points and dependency/build/SDK folders
+(`.git`, `.vs`, `.nuget`, `.dotnet`, `node_modules`, `bin`, `obj`) and reports
+inaccessible folders. **Stop** cancels discovery; **Reset workspace discovery**
 allows another scan. Missing drives are reported without blocking startup.
 
 Selecting a repository shows its remote and nearest applicable `global.json`.
@@ -88,7 +94,7 @@ PATH so typed `dotnetup` commands work even when persistent PATH changes are off
 
 **Tools / Options** chooses PowerShell (PowerShell 7 when available, otherwise
 Windows PowerShell) or Command Prompt, and independent UI/monospace console fonts.
-The **Repositories** page sets discovery depth: `0` keeps unlimited scanning,
+The **Solutions and projects** page sets discovery depth: `0` keeps unlimited scanning,
 `1` includes the scan root and its immediate subfolders, and values through `100`
 include further levels. Changing depth resets discovery for the next drive expansion.
 Changing shell restarts the hosted terminal. Preferences and window bounds are

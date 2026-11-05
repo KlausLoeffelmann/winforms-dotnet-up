@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="DotnetUp.SmokeTests" />
+    <None Include="..\..\..\ThirdPartyNotices.txt" Link="ThirdPartyNotices.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

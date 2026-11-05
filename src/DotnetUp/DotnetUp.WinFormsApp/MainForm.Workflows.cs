@@ -272,10 +272,10 @@ public partial class MainForm
             {
                 node.Collapse();
                 node.Nodes.Clear();
-                node.Nodes.Add("Expand to discover GitHub repositories");
+                node.Nodes.Add("Expand to discover solutions and projects");
             }
         }
 
-        SetStatus("Repository discovery reset. Expand a drive to scan again.");
+        SetStatus("Workspace discovery reset. Expand a drive to scan again.");
     }
 }

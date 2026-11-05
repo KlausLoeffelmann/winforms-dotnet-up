@@ -109,40 +109,58 @@ internal static class Program
             Directory.CreateDirectory(Path.Combine(repository, ".git"));
             File.WriteAllText(Path.Combine(repository, ".git", "config"),
                 "[remote \"origin\"]\r\n url = git@github.com:example/project.git\r\n");
+            File.WriteAllText(Path.Combine(repository, "Example.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\" />");
             File.WriteAllText(Path.Combine(folder, "global.json"), """{"sdk":{"version":"10.0.103"}}""");
             string unrelated = Path.Combine(folder, "unrelated");
             Directory.CreateDirectory(Path.Combine(unrelated, ".git"));
             File.WriteAllText(Path.Combine(unrelated, ".git", "config"),
                 "[remote \"origin\"]\r\n url = https://github.com.evil.example/repo\r\n");
-            RepositoryScan scan = RepositoryScanner.Scan(folder, null, CancellationToken.None);
+            WorkspaceScan scan = WorkspaceScanner.Scan(folder, null, CancellationToken.None);
             Require(scan.Repositories.Count == 1, "Only genuine GitHub remotes are discovered");
             RepositoryInfo repo = scan.Repositories.Single();
             Require(repo.GlobalJson == Path.Combine(folder, "global.json"), "Nearest ancestor global.json is used");
             Require(repo.GetDetails().Any(row => row.Name == "sdk.version" && row.Value == "10.0.103"), "Repository SDK details are displayed");
-            Require(RepositoryScanner.Scan(folder, null, CancellationToken.None, maxDepth: 1).Repositories.Count == 0,
+            Require(WorkspaceScanner.Scan(folder, null, CancellationToken.None, maxDepth: 1).Repositories.Count == 0,
                 "Depth 1 does not inspect second-level repositories");
-            Require(RepositoryScanner.Scan(folder, null, CancellationToken.None, maxDepth: 2).Repositories.Count == 1,
+            Require(WorkspaceScanner.Scan(folder, null, CancellationToken.None, maxDepth: 2).Repositories.Count == 1,
                 "Repositories at the exact depth limit are inspected");
             string deep = Path.Combine(repository, "nested");
             Directory.CreateDirectory(Path.Combine(deep, ".git"));
             File.WriteAllText(Path.Combine(deep, ".git", "config"),
                 "[remote \"origin\"]\r\n url = https://github.com/example/nested.git\r\n");
-            Require(RepositoryScanner.Scan(folder, null, CancellationToken.None, maxDepth: 2).Repositories.Count == 1,
+            File.WriteAllText(Path.Combine(deep, "Nested.fsproj"), "<Project />");
+            Require(WorkspaceScanner.Scan(folder, null, CancellationToken.None, maxDepth: 2).Repositories.Count == 1,
                 "Scanning stops below the depth boundary, including inside repositories");
-            Require(RepositoryScanner.Scan(folder, null, CancellationToken.None, maxDepth: 0).Repositories.Count == 2,
+            Require(WorkspaceScanner.Scan(folder, null, CancellationToken.None, maxDepth: 0).Repositories.Count == 2,
                 "Zero preserves unlimited discovery");
             using CancellationTokenSource cancellation = new();
             cancellation.Cancel();
             try
             {
-                RepositoryScanner.Scan(folder, null, cancellation.Token);
+                WorkspaceScanner.Scan(folder, null, cancellation.Token);
                 throw new InvalidOperationException("Discovery must observe cancellation.");
             }
             catch (OperationCanceledException)
             {
             }
 
-            Console.WriteLine("PASS: GitHub discovery, SDK requirements and scan cancellation");
+            string local = Path.Combine(folder, "local");
+            Directory.CreateDirectory(local);
+            File.WriteAllText(Path.Combine(local, "Local.slnx"), "<Solution><Project Path=\"App.csproj\" /></Solution>");
+            File.WriteAllText(Path.Combine(local, "App.csproj"), "<Project />");
+            File.WriteAllText(Path.Combine(local, "Program.cs"), "// must not be a tree item");
+            string web = Path.Combine(folder, "website");
+            Directory.CreateDirectory(web);
+            File.WriteAllText(Path.Combine(web, "web.config"), "<configuration />");
+            scan = WorkspaceScanner.Scan(folder, null, CancellationToken.None);
+            Require(scan.Entries.Any(entry => entry.Kind == WorkspaceKind.Solution && entry.Repository is null)
+                && scan.Entries.Any(entry => entry.Kind == WorkspaceKind.WebApplication),
+                "Local solutions and ASP.NET applications are discovered without GitHub");
+            WorkspaceEntry solution = scan.Entries.Single(entry => entry.Kind == WorkspaceKind.Solution);
+            Require(WorkspaceScanner.ReadSolutionProjects(solution).Single().Path == Path.Combine(local, "App.csproj")
+                && scan.Entries.All(entry => !entry.Path.EndsWith("Program.cs")),
+                "Solutions expose project references, never source files");
+            Console.WriteLine("PASS: depth-limited solution/project/web discovery, GitHub annotations and cancellation");
         }
         finally
         {

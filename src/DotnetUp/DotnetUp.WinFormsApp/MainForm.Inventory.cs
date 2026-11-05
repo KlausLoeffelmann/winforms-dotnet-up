@@ -12,6 +12,7 @@ public partial class MainForm
 
     private void InitializeNavigation()
     {
+        InitializeNavigationIcons();
         navigation.BeforeExpand += Navigation_BeforeExpand;
         TreeNode root = new("System") { Tag = new NavigationItem("system") };
         root.Nodes.Add(new TreeNode("GAC") { Tag = new NavigationItem("gac") });
@@ -20,7 +21,7 @@ public partial class MainForm
         foreach (string drive in new[] { @"C:\", @"N:\" })
         {
             TreeNode node = new($"Drive {drive[0]}") { Tag = new NavigationItem("drive", drive) };
-            node.Nodes.Add("Expand to discover GitHub repositories");
+            node.Nodes.Add("Expand to discover solutions and projects");
             root.Nodes.Add(node);
         }
 
@@ -103,6 +104,7 @@ public partial class MainForm
             "sdks" => _sdkRows,
             "sdk" when item.Value is DetailRow[] values => values,
             "repository" when item.Value is RepositoryInfo repo => repo.GetDetails(),
+            "workspace" when item.Value is WorkspaceEntry workspace => workspace.GetDetails(),
             "gac" => await Task.Run(SystemInventory.GetGac, _inventoryLifetime.Token),
             "folder" => node.Nodes.Cast<TreeNode>()
                 .Where(child => child.Tag is NavigationItem { Value: RepositoryInfo })
@@ -115,7 +117,7 @@ public partial class MainForm
                 new DetailRow("dotnetup", SystemInventory.FindDotnetUp() ?? "Not installed - use Tools / Setup wizard",
                     "User-level SDK manager", "", "Public preview"),
                 new DetailRow("SDKs", _sdkRows.Count.ToString(), "Inventory", "", "Select .NET SDKs"),
-                new DetailRow("Repositories", "Expand Drive C or Drive N", "Discovery", "", "GitHub remotes"),
+                new DetailRow("Solutions / projects", "Expand Drive C or Drive N", "Discovery", "", "Visual Studio / .NET / ASP.NET"),
                 new DetailRow("GAC", ".NET Framework assemblies (read-only)", "System", "", "Separate from modern .NET SDKs")
             ]
         };
@@ -130,6 +132,28 @@ public partial class MainForm
     private async void Navigation_BeforeExpand(object? sender, TreeViewCancelEventArgs e)
     {
         TreeNode? node = e.Node;
+        if (node?.Tag is NavigationItem { Value: WorkspaceEntry { Kind: WorkspaceKind.Solution } solution })
+        {
+            if (node.Nodes.Count == 1 && node.Nodes[0].Tag is null)
+            {
+                try
+                {
+                    IReadOnlyList<WorkspaceEntry> projects = await Task.Run(() => WorkspaceScanner.ReadSolutionProjects(solution), _inventoryLifetime.Token);
+                    node.Nodes.Clear();
+                    foreach (WorkspaceEntry project in projects)
+                    {
+                        node.Nodes.Add(CreateWorkspaceNode(project));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ShowError($"Unable to read solution: {ex.Message}");
+                }
+            }
+
+            return;
+        }
+
         if (node?.Tag is not NavigationItem { Kind: "drive", Path: string path }
             || node.Nodes.Count != 1 || node.Nodes[0].Tag is not null)
         {
@@ -147,7 +171,7 @@ public partial class MainForm
         if (_scanCancellation is not null)
         {
             e.Cancel = true;
-            ShowError("A repository scan is already running. Wait or stop it first.");
+            ShowError("A workspace scan is already running. Wait or stop it first.");
             return;
         }
 
@@ -157,31 +181,22 @@ public partial class MainForm
             node.Nodes[0].Text = "Scanning...";
             Progress<string> progress = new(SetStatus);
             int maxDepth = _preferences.RepositoryScanDepth;
-            RepositoryScan scan = await Task.Run(() => RepositoryScanner.Scan(path, progress, _scanCancellation.Token, maxDepth));
+            WorkspaceScan scan = await Task.Run(() => WorkspaceScanner.Scan(path, progress, _scanCancellation.Token, maxDepth));
             node.Nodes.Clear();
-            foreach (IGrouping<string, RepositoryInfo> group in scan.Repositories.GroupBy(repo => Path.GetDirectoryName(repo.Path) ?? path))
-            {
-                TreeNode folder = new(group.Key) { Tag = new NavigationItem("folder", group.Key) };
-                foreach (RepositoryInfo repo in group)
-                {
-                    folder.Nodes.Add(new TreeNode(repo.Name) { Tag = new NavigationItem("repository", repo.Path, repo) });
-                }
-
-                node.Nodes.Add(folder);
-            }
+            PopulateWorkspaceTree(node, path, scan);
 
             if (node.Nodes.Count == 0)
             {
-                node.Nodes.Add(new TreeNode("No GitHub repositories found") { Tag = new NavigationItem("empty") });
+                node.Nodes.Add(new TreeNode("No solutions, projects or ASP.NET applications found") { Tag = new NavigationItem("empty") });
             }
 
-            SetStatus($"Found {scan.Repositories.Count} GitHub repositories on {path}; {scan.UnreadableFolders} inaccessible folders.");
+            SetStatus($"Found {scan.Entries.Count} solutions/projects/applications on {path}; {scan.UnreadableFolders} inaccessible folders.");
         }
         catch (OperationCanceledException)
         {
             node.Nodes.Clear();
             node.Nodes.Add("Scan cancelled - collapse and expand to retry");
-            SetStatus("Repository discovery cancelled.");
+            SetStatus("Workspace discovery cancelled.");
         }
         catch (Exception ex)
         {
@@ -196,6 +211,66 @@ public partial class MainForm
         }
     }
 
+    private TreeNode CreateWorkspaceNode(WorkspaceEntry entry)
+    {
+        string icon = entry.Kind switch { WorkspaceKind.Solution => "solution", WorkspaceKind.Project => "project", _ => "web" };
+        if (entry.Kind == WorkspaceKind.Solution && File.Exists(entry.Path))
+        {
+            string key = Path.GetExtension(entry.Path).ToLowerInvariant();
+            if (!navigation.ImageList!.Images.ContainsKey(key))
+            {
+                using Icon? associated = Icon.ExtractAssociatedIcon(entry.Path);
+                if (associated is not null)
+                {
+                    navigation.ImageList.Images.Add(key, associated);
+                }
+            }
+
+            if (navigation.ImageList.Images.ContainsKey(key))
+            {
+                icon = key;
+            }
+        }
+
+        TreeNode node = new(entry.Name) { Tag = new NavigationItem("workspace", entry.Path, entry), ImageKey = icon, SelectedImageKey = icon };
+        if (entry.Kind == WorkspaceKind.Solution)
+        {
+            node.Nodes.Add("Expand to show projects");
+        }
+
+        return node;
+    }
+
+    private void PopulateWorkspaceTree(TreeNode drive, string root, WorkspaceScan scan)
+    {
+        Dictionary<string, TreeNode> folders = new(StringComparer.OrdinalIgnoreCase) { [Path.GetFullPath(root).TrimEnd('\\')] = drive };
+        TreeNode EnsureFolder(string path)
+        {
+            string key = Path.GetFullPath(path).TrimEnd('\\');
+            if (folders.TryGetValue(key, out TreeNode? existing))
+            {
+                return existing;
+            }
+
+            TreeNode parent = EnsureFolder(Path.GetDirectoryName(key)!);
+            RepositoryInfo? repo = scan.Repositories.FirstOrDefault(repo => repo.Path.Equals(key, StringComparison.OrdinalIgnoreCase));
+            string icon = repo is null ? "folder" : "github";
+            TreeNode folder = new(Path.GetFileName(key))
+            {
+                Tag = repo is null ? new NavigationItem("folder", key) : new NavigationItem("repository", key, repo),
+                ImageKey = icon,
+                SelectedImageKey = icon
+            };
+            folders.Add(key, folder);
+            parent.Nodes.Add(folder);
+            return folder;
+        }
+
+        foreach (WorkspaceEntry entry in scan.Entries)
+        {
+            EnsureFolder(entry.DirectoryPath).Nodes.Add(CreateWorkspaceNode(entry));
+        }
+    }
     private async void Tree_AfterSelect(object? sender, TreeViewEventArgs e)
     {
         try

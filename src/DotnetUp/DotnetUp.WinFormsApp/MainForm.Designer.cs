@@ -40,7 +40,7 @@ partial class MainForm
         ToolStripMenuItem environmentItem = new ToolStripMenuItem("Show &environment");
         ToolStripMenuItem infoItem = new ToolStripMenuItem("dotnetup &information");
         ToolStripMenuItem selfUpdateItem = new ToolStripMenuItem("Update &dotnetup...");
-        ToolStripMenuItem rescanItem = new ToolStripMenuItem("Reset repository discover&y");
+        ToolStripMenuItem rescanItem = new ToolStripMenuItem("Reset workspace discover&y");
         ToolStripMenuItem repositoryMenu = new ToolStripMenuItem("&Repository");
         ToolStripMenuItem repoInstallItem = new ToolStripMenuItem("&Install SDK from global.json...");
         ToolStripMenuItem repoTerminalItem = new ToolStripMenuItem("Use repository in &terminal");
@@ -173,7 +173,7 @@ partial class MainForm
         contentSplit.Panel2.Controls.Add(console);
         navigation.Dock = DockStyle.Fill;
         navigation.HideSelection = false;
-        navigation.AccessibleName = "System and repositories";
+        navigation.AccessibleName = "System, solutions and projects";
         navigation.AfterSelect += Tree_AfterSelect;
         navigation.ContextMenuStrip = repositoryContext;
         navigation.NodeMouseClick += Navigation_NodeMouseClick;

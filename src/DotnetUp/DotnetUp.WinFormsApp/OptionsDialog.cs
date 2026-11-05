@@ -8,7 +8,7 @@ internal sealed partial class OptionsDialog : Form
         terminalPage.LoadPreferences(preferences);
         repositoryPage.LoadPreferences(preferences);
         tabs.AddTab("&Terminal and fonts", terminalPage);
-        tabs.AddTab("&Repositories", repositoryPage);
+        tabs.AddTab("&Solutions and projects", repositoryPage);
     }
 
     public void ApplyTo(AppPreferences preferences)

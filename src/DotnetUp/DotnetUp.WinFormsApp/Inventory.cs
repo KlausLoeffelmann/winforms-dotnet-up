@@ -150,70 +150,19 @@ public sealed record RepositoryInfo(string Name, string Path, string Remote, str
     }
 }
 
-public sealed record RepositoryScan(IReadOnlyList<RepositoryInfo> Repositories, int UnreadableFolders);
-
 internal static partial class RepositoryScanner
 {
-    private static readonly HashSet<string> ExcludedFolders = new(StringComparer.OrdinalIgnoreCase)
+    public static RepositoryInfo? ReadRepository(string folder)
     {
-        ".git", ".vs", ".nuget", "node_modules", "bin", "obj", "$Recycle.Bin", "System Volume Information"
-    };
-
-    public static RepositoryScan Scan(string root, IProgress<string>? progress, CancellationToken cancellation, int maxDepth = 0)
-    {
-        if (maxDepth is < 0 or > 100)
+        string? config = GetConfigPath(folder);
+        if (config is null || !File.Exists(config))
         {
-            throw new ArgumentOutOfRangeException(nameof(maxDepth), "Use 0 (unlimited) through 100 folder levels.");
+            return null;
         }
 
-        List<RepositoryInfo> repositories = [];
-        Stack<(string Folder, int Depth)> pending = new();
-        pending.Push((root, 0));
-        int unreadable = 0;
-        int visited = 0;
-        while (pending.TryPop(out var entry))
-        {
-            (string folder, int depth) = entry;
-            cancellation.ThrowIfCancellationRequested();
-            if (++visited % 200 == 0)
-            {
-                progress?.Report($"Scanning {folder} ({repositories.Count} GitHub repositories)...");
-            }
-
-            try
-            {
-                string? config = GetConfigPath(folder);
-                if (config is not null && File.Exists(config))
-                {
-                    Match remote = GitHubRemote().Match(File.ReadAllText(config));
-                    if (remote.Success)
-                    {
-                        repositories.Add(new RepositoryInfo(new DirectoryInfo(folder).Name,
-                            folder, remote.Groups["url"].Value, FindGlobalJson(folder)));
-                    }
-                }
-
-                if (maxDepth != 0 && depth >= maxDepth)
-                {
-                    continue;
-                }
-
-                foreach (string child in Directory.EnumerateDirectories(folder))
-                {
-                    if (!ExcludedFolders.Contains(Path.GetFileName(child))
-                        && (File.GetAttributes(child) & FileAttributes.ReparsePoint) == 0)
-                    {
-                        pending.Push((child, depth + 1));
-                    }
-                }
-            }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-            {
-                unreadable++;
-            }
-        }
-
-        return new RepositoryScan(repositories.OrderBy(repo => repo.Path, StringComparer.OrdinalIgnoreCase).ToArray(), unreadable);
+        Match remote = GitHubRemote().Match(File.ReadAllText(config));
+        return remote.Success ? new RepositoryInfo(new DirectoryInfo(folder).Name,
+            folder, remote.Groups["url"].Value, FindGlobalJson(folder)) : null;
     }
 
     private static string? GetConfigPath(string folder)

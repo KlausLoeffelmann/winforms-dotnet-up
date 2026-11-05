@@ -33,10 +33,10 @@ partial class RepositoryOptionsPage
         depth.Maximum = 100;
         depth.Anchor = AnchorStyles.Left | AnchorStyles.Right;
         depth.Margin = new Padding(3, 8, 3, 8);
-        depth.AccessibleName = "Maximum repository scan depth";
+        depth.AccessibleName = "Maximum solution and project scan depth";
         depth.AccessibleDescription = "0 means unlimited. 1 includes the scan root and its immediate subfolders.";
         depth.TabIndex = 1;
-        note.Text = "0 = unlimited (the default).\r\n1 = scan the root and its immediate subfolders.\r\nLarger values include more nested folders, up to 100 levels.\r\n\r\nChanging depth resets discovery; expand a drive to scan again.\r\nBuild, dependency and linked folders are always skipped.";
+        note.Text = "0 = unlimited (the default).\r\n1 = scan the root and its immediate subfolders.\r\nLarger values include more nested folders, up to 100 levels.\r\n\r\nDiscovery finds solutions, projects and ASP.NET application folders.\r\nGitHub repositories are annotations, not a discovery requirement.\r\nChanging depth resets discovery; expand a drive to scan again.\r\nBuild, dependency, installed SDK and linked folders are skipped.";
         note.AutoSize = true;
         note.Dock = DockStyle.Fill;
         note.Margin = new Padding(3, 12, 3, 8);
