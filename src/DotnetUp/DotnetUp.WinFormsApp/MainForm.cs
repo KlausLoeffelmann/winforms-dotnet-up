@@ -167,9 +167,9 @@ public partial class MainForm : Form, IServiceProvider
     private void Exit_Click(object? sender, EventArgs e) => Close();
     private async void Options_Click(object? sender, EventArgs e)
     {
-        if (_terminal?.IsBusy == true || _workflowRunning)
+        if (_terminal?.IsBusy == true || _workflowRunning || _scanCancellation is not null)
         {
-            ShowError("Wait for the current command before changing terminal options.");
+            ShowError("Wait for or stop the current command or scan before changing options.");
             return;
         }
 
@@ -177,8 +177,16 @@ public partial class MainForm : Form, IServiceProvider
         if (dialog.ShowDialog(this) == DialogResult.OK)
         {
             ShellKind previousShell = _preferences.Shell;
+            int previousDepth = _preferences.RepositoryScanDepth;
             dialog.ApplyTo(_preferences);
             ApplyPreferences();
+            _userSettingsService?.Set("Preferences", JsonSerializer.Serialize(_preferences));
+            _userSettingsService?.Flush();
+            if (previousDepth != _preferences.RepositoryScanDepth)
+            {
+                Rescan_Click(this, EventArgs.Empty);
+            }
+
             if (previousShell != _preferences.Shell && _terminal is not null)
             {
                 try

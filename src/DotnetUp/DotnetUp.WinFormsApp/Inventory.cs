@@ -156,15 +156,21 @@ internal static partial class RepositoryScanner
         ".git", ".vs", ".nuget", "node_modules", "bin", "obj", "$Recycle.Bin", "System Volume Information"
     };
 
-    public static RepositoryScan Scan(string root, IProgress<string>? progress, CancellationToken cancellation)
+    public static RepositoryScan Scan(string root, IProgress<string>? progress, CancellationToken cancellation, int maxDepth = 0)
     {
+        if (maxDepth is < 0 or > 100)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxDepth), "Use 0 (unlimited) through 100 folder levels.");
+        }
+
         List<RepositoryInfo> repositories = [];
-        Stack<string> pending = new();
-        pending.Push(root);
+        Stack<(string Folder, int Depth)> pending = new();
+        pending.Push((root, 0));
         int unreadable = 0;
         int visited = 0;
-        while (pending.TryPop(out string? folder))
+        while (pending.TryPop(out var entry))
         {
+            (string folder, int depth) = entry;
             cancellation.ThrowIfCancellationRequested();
             if (++visited % 200 == 0)
             {
@@ -184,12 +190,17 @@ internal static partial class RepositoryScanner
                     }
                 }
 
+                if (maxDepth != 0 && depth >= maxDepth)
+                {
+                    continue;
+                }
+
                 foreach (string child in Directory.EnumerateDirectories(folder))
                 {
                     if (!ExcludedFolders.Contains(Path.GetFileName(child))
                         && (File.GetAttributes(child) & FileAttributes.ReparsePoint) == 0)
                     {
-                        pending.Push(child);
+                        pending.Push((child, depth + 1));
                     }
                 }
             }

@@ -17,10 +17,16 @@ public sealed class AppPreferences
     public string ConsoleFontFamily { get; set; } = "Consolas";
     public float ConsoleFontSize { get; set; } = 11;
     public bool SetupCompleted { get; set; }
+    public int RepositoryScanDepth { get; set; }
 
     public void Validate()
     {
         SdkChannels.Validate(Channel);
+        if (RepositoryScanDepth is < 0 or > 100)
+        {
+            throw new ArgumentException("Repository scan depth must be between 0 (unlimited) and 100.");
+        }
+
         if (!Enum.IsDefined(Shell) || string.IsNullOrWhiteSpace(UiFontFamily)
             || string.IsNullOrWhiteSpace(ConsoleFontFamily)
             || !float.IsFinite(UiFontSize) || UiFontSize is < 6 or > 36

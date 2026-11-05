@@ -88,6 +88,9 @@ PATH so typed `dotnetup` commands work even when persistent PATH changes are off
 
 **Tools / Options** chooses PowerShell (PowerShell 7 when available, otherwise
 Windows PowerShell) or Command Prompt, and independent UI/monospace console fonts.
+The **Repositories** page sets discovery depth: `0` keeps unlimited scanning,
+`1` includes the scan root and its immediate subfolders, and values through `100`
+include further levels. Changing depth resets discovery for the next drive expansion.
 Changing shell restarts the hosted terminal. Preferences and window bounds are
 saved through WARP's user settings service. Generated scripts use a
 process-local execution-policy bypass, not a persisted policy change.

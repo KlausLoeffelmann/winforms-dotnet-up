@@ -17,6 +17,7 @@ internal static class Program
 
         Application.SetHighDpiMode(HighDpiMode.SystemAware);
         Application.EnableVisualStyles();
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
         using Form host = new() { Width = 900, Height = 600, Text = "dotnetup regression checks" };
         D2DConsole console = new() { Dock = DockStyle.Fill };
         host.Controls.Add(console);
@@ -116,6 +117,18 @@ internal static class Program
             RepositoryInfo repo = scan.Repositories.Single();
             Require(repo.GlobalJson == Path.Combine(folder, "global.json"), "Nearest ancestor global.json is used");
             Require(repo.GetDetails().Any(row => row.Name == "sdk.version" && row.Value == "10.0.103"), "Repository SDK details are displayed");
+            Require(RepositoryScanner.Scan(folder, null, CancellationToken.None, maxDepth: 1).Repositories.Count == 0,
+                "Depth 1 does not inspect second-level repositories");
+            Require(RepositoryScanner.Scan(folder, null, CancellationToken.None, maxDepth: 2).Repositories.Count == 1,
+                "Repositories at the exact depth limit are inspected");
+            string deep = Path.Combine(repository, "nested");
+            Directory.CreateDirectory(Path.Combine(deep, ".git"));
+            File.WriteAllText(Path.Combine(deep, ".git", "config"),
+                "[remote \"origin\"]\r\n url = https://github.com/example/nested.git\r\n");
+            Require(RepositoryScanner.Scan(folder, null, CancellationToken.None, maxDepth: 2).Repositories.Count == 1,
+                "Scanning stops below the depth boundary, including inside repositories");
+            Require(RepositoryScanner.Scan(folder, null, CancellationToken.None, maxDepth: 0).Repositories.Count == 2,
+                "Zero preserves unlimited discovery");
             using CancellationTokenSource cancellation = new();
             cancellation.Cancel();
             try
@@ -138,6 +151,18 @@ internal static class Program
     private static void CheckCommandPlans()
     {
         AppPreferences preferences = new();
+        foreach (int invalidDepth in new[] { -1, 101 })
+        {
+            try
+            {
+                new AppPreferences { RepositoryScanDepth = invalidDepth }.Validate();
+                throw new InvalidOperationException("Out-of-range scan depth must be rejected.");
+            }
+            catch (ArgumentException)
+            {
+            }
+        }
+
         Require(SetupWizard.IsRequired(preferences, null), "Missing tool on first launch needs setup");
         Require(!SetupWizard.IsRequired(preferences, "dotnetup.exe"), "Existing tool does not need first-run setup");
         Require(!SetupWizard.IsRequired(new AppPreferences { SetupCompleted = true }, null),
@@ -287,11 +312,13 @@ internal static class Program
                 button.Visible && button.Height >= button.GetPreferredSize(Size.Empty).Height
                 && wizard.ClientRectangle.Contains(wizard.RectangleToClient(button.RectangleToScreen(button.ClientRectangle)))),
                 $"Wizard captions fit inside the client area at {size} pt");
+            wizard.Font = host.Font;
         }
 
         Descendants(wizard).OfType<Button>().Single(button => button.Text == "&Cancel").PerformClick();
         Require(await wizardTask.WaitAsync(TimeSpan.FromSeconds(10)) == WarpToolkit.WinForms.Containers.Wizard.WizardDialogResult.Cancelled,
             "Wizard can be postponed without executing installation");
+        Console.WriteLine("PASS: wizard font layout and cancellation");
         MenuStrip menu = main.MainMenuStrip!;
         Require(menu.Items.Cast<ToolStripItem>().Select(item => item.Text).SequenceEqual(["&File", "&Channel", "&Repository", "&Tools"]),
             "All requested top-level menus are present");
@@ -326,6 +353,37 @@ internal static class Program
             options.Show(host);
             await Task.Delay(100);
             Require(Descendants(options).OfType<ComboBox>().Single().Items.Count == 2, "Options exposes both shell types");
+            WarpToolkit.WinForms.Containers.FluentTabControl tabs =
+                Descendants(options).OfType<WarpToolkit.WinForms.Containers.FluentTabControl>().Single();
+            Require(tabs.Tabs.Count() == 2 && !Descendants(options).OfType<TabControl>().Any(),
+                "Separate options views use WARP Fluent tabs, not native tabs");
+            Require(Descendants(options).OfType<TextBox>().Count(box => box.ReadOnly) == 2,
+                "Font pickers show their values in read-only editors");
+            tabs.CurrentTabIndex = 1;
+            NumericUpDown depth = Descendants(options).OfType<NumericUpDown>().Single();
+            Require(depth.Visible && depth.Value == 0, "Repository options preserve unlimited default");
+            depth.Value = 3;
+            AppPreferences changed = new();
+            options.ApplyTo(changed);
+            Require(changed.RepositoryScanDepth == 3, "Options apply the chosen scan depth");
+            AppPreferences restored = System.Text.Json.JsonSerializer.Deserialize<AppPreferences>(
+                System.Text.Json.JsonSerializer.Serialize(changed))!;
+            Require(restored.RepositoryScanDepth == 3, "Scan depth survives preferences persistence");
+            options.Close();
+        }
+
+        foreach (float size in new[] { 18F, 24F, 36F })
+        {
+            using Font font = new("Segoe UI", size);
+            using OptionsDialog options = new(new AppPreferences()) { Font = font };
+            options.Show(host);
+            await Task.Delay(100);
+            Require(Descendants(options).OfType<Button>().Where(button => button.Text is "&OK" or "&Cancel").All(button =>
+                button.Height >= button.GetPreferredSize(Size.Empty).Height
+                && options.ClientRectangle.Contains(options.RectangleToClient(button.RectangleToScreen(button.ClientRectangle)))),
+                $"Options footer remains usable at {size} pt");
+            Require(Descendants(options).OfType<UserControl>().All(page => page.AutoScroll),
+                "Option pages own their overflow scrolling");
             options.Close();
         }
 

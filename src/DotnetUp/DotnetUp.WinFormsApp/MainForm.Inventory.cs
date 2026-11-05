@@ -156,7 +156,8 @@ public partial class MainForm
         {
             node.Nodes[0].Text = "Scanning...";
             Progress<string> progress = new(SetStatus);
-            RepositoryScan scan = await Task.Run(() => RepositoryScanner.Scan(path, progress, _scanCancellation.Token));
+            int maxDepth = _preferences.RepositoryScanDepth;
+            RepositoryScan scan = await Task.Run(() => RepositoryScanner.Scan(path, progress, _scanCancellation.Token, maxDepth));
             node.Nodes.Clear();
             foreach (IGrouping<string, RepositoryInfo> group in scan.Repositories.GroupBy(repo => Path.GetDirectoryName(repo.Path) ?? path))
             {
