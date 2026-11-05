@@ -13,7 +13,9 @@ Install a .NET 11 SDK and run:
 dotnet run --project src\DotnetUp\DotnetUp.WinFormsApp
 ```
 
-The first launch presents a three-page setup wizard. Nothing is downloaded or
+The first launch presents a three-page setup wizard only when dotnetup is missing
+and setup has not previously completed. Existing installations open directly.
+Nothing is downloaded or
 changed until **Finish**. If dotnetup is missing, the hosted PowerShell session runs:
 
 ```powershell

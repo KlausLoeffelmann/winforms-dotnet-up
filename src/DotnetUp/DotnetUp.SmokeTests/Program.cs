@@ -27,16 +27,16 @@ internal static class Program
                 CheckInventory();
                 CheckRepositoryDiscovery();
                 CheckCommandPlans();
-                foreach (ShellKind shell in Enum.GetValues<ShellKind>())
+                foreach (ShellKind shell in args.Contains("--ui-only") ? Array.Empty<ShellKind>() : Enum.GetValues<ShellKind>())
                 {
                     await using HostedTerminal terminal = new(console);
                     await terminal.StartAsync(shell);
                     CommandResult result = await terminal.RunAsync(new ShellCommand(
                         Path.Combine(Environment.SystemDirectory, "cmd.exe"), ["/d", "/c", "echo", "terminal-pass"])).WaitAsync(TimeSpan.FromSeconds(30));
-                    Require(result.Succeeded, $"{shell} command succeeds: {result.LastError}\n{console.OutputText}");
+                    Require(result.Succeeded, $"{shell} command succeeds: {result.LastError}\n{ConsoleOutput(console)}");
                     await Task.Delay(300);
                     await console.FlushAsync();
-                    Require(console.OutputText.Contains("terminal-pass"), $"{shell} output is visible");
+                    Require(ConsoleOutput(console).Contains("terminal-pass"), $"{shell} output is visible");
                     result = await terminal.RunAsync(new ShellCommand(
                         Path.Combine(Environment.SystemDirectory, "cmd.exe"), ["/d", "/c", "exit", "7"])).WaitAsync(TimeSpan.FromSeconds(30));
                     Require(result.ExitCode == 7, $"{shell} preserves native exit code");
@@ -52,7 +52,7 @@ internal static class Program
             {
                 _exitCode = 1;
                 Console.Error.WriteLine(ex);
-                Console.Error.WriteLine(console.OutputText);
+                Console.Error.WriteLine(ConsoleOutput(console));
             }
             finally
             {
@@ -69,7 +69,11 @@ internal static class Program
         {
             throw new InvalidOperationException(message);
         }
+
     }
+
+    private static string ConsoleOutput(D2DConsole console) => string.Join(Environment.NewLine,
+        Enumerable.Range(0, console.Buffer.LineCount).Select(console.Buffer.GetLineText));
 
     private static void CheckInventory()
     {
@@ -134,6 +138,10 @@ internal static class Program
     private static void CheckCommandPlans()
     {
         AppPreferences preferences = new();
+        Require(SetupWizard.IsRequired(preferences, null), "Missing tool on first launch needs setup");
+        Require(!SetupWizard.IsRequired(preferences, "dotnetup.exe"), "Existing tool does not need first-run setup");
+        Require(!SetupWizard.IsRequired(new AppPreferences { SetupCompleted = true }, null),
+            "Completed setup is not automatically repeated");
         using SdkTaskDialog dialog = new("dotnetup.exe", ShellKind.PowerShell, preferences.Channel, false, null, null);
         ComboBox channel = (ComboBox)typeof(SdkTaskDialog)
             .GetField("channelChoice", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
@@ -195,7 +203,7 @@ internal static class Program
             .WaitAsync(TimeSpan.FromSeconds(30));
         Require(result.Succeeded && ManagedInventory.Parse(result.Output).Installations.Count == 1,
             $"{shell} captures real executable JSON output");
-        Require(console.OutputText.Contains("10.0.103"), $"{shell} captured JSON is also visible in terminal");
+        Require(ConsoleOutput(console).Contains("10.0.103"), $"{shell} captured JSON is also visible in terminal");
         string[] values = ["spaces & apostrophe's", @"C:\space folder\", "unicode-\u00e4"];
         result = await terminal.RunAsync(new ShellCommand(executable, ["--probe", .. values]), captureJson: true)
             .WaitAsync(TimeSpan.FromSeconds(30));
@@ -238,22 +246,52 @@ internal static class Program
     {
         using MainForm main = new();
         main.Show(host);
-        WarpToolkit.WinForms.Containers.Wizard.WizardContainer? wizard = null;
-        await WaitUntilAsync(() =>
+        await WaitUntilAsync(() => Descendants(main).OfType<DataGridView>().Single().Rows.Count > 0,
+            "Startup inventory is displayed");
+        if (SystemInventory.FindDotnetUp() is null)
         {
-            wizard = Application.OpenForms.Cast<Form>().SelectMany(Descendants)
-                .OfType<WarpToolkit.WinForms.Containers.Wizard.WizardContainer>().FirstOrDefault();
-            return wizard is not null;
-        }, "First launch opens the setup wizard");
-        Require(wizard!.PageCount == 3, "Setup offers welcome, choices and review pages");
-        Require(await wizard.GoNextAsync(), "Wizard can navigate to setup choices");
-        Require(await wizard.GoNextAsync(), "Wizard can navigate to command review");
+            SetupWizard? startupWizard = null;
+            await WaitUntilAsync(() =>
+            {
+                startupWizard = Application.OpenForms.OfType<SetupWizard>().FirstOrDefault();
+                return startupWizard is not null;
+            }, "First launch with no tool opens setup");
+            startupWizard!.Close();
+            await WaitUntilAsync(() => startupWizard.IsDisposed, "Startup setup is postponed");
+        }
+        else
+        {
+            await Task.Delay(200);
+            Require(!Application.OpenForms.OfType<SetupWizard>().Any(), "Installed dotnetup skips startup setup");
+        }
+
+        Console.WriteLine("PASS: startup wizard eligibility");
+        using SetupWizard wizard = new("lts", host.Font, alreadyInstalled: false);
+        Task<WarpToolkit.WinForms.Containers.Wizard.WizardDialogResult> wizardTask = wizard.ShowSetupAsync(host);
+        await Task.Delay(100);
+        Button next = Descendants(wizard).OfType<Button>().Single(button => button.Text == "&Next");
+        next.PerformClick();
+        Require(Descendants(wizard).OfType<ComboBox>().All(box => box.Visible), "Wizard navigates to setup choices");
+        next.PerformClick();
         string review = Descendants(wizard).OfType<TextBox>().Single(box => box.Multiline).Text;
         Require(review.Contains("env") && review.Contains("none") && !review.Contains("'everywhere'"),
             "First-run review shows the safe environment plan");
-        Form wizardForm = wizard.FindForm()!;
-        wizardForm.Close();
-        await WaitUntilAsync(() => wizardForm.IsDisposed, "Wizard can be postponed without executing installation");
+        Require(next.Text == "&Finish", "Review page offers Finish");
+        Console.WriteLine("PASS: wizard navigation and review");
+        foreach (float size in new[] { 10F, 18F, 24F, 36F })
+        {
+            using Font font = new("Segoe UI", size);
+            wizard.Font = font;
+            wizard.PerformLayout();
+            Require(Descendants(wizard).OfType<Button>().All(button =>
+                button.Visible && button.Height >= button.GetPreferredSize(Size.Empty).Height
+                && wizard.ClientRectangle.Contains(wizard.RectangleToClient(button.RectangleToScreen(button.ClientRectangle)))),
+                $"Wizard captions fit inside the client area at {size} pt");
+        }
+
+        Descendants(wizard).OfType<Button>().Single(button => button.Text == "&Cancel").PerformClick();
+        Require(await wizardTask.WaitAsync(TimeSpan.FromSeconds(10)) == WarpToolkit.WinForms.Containers.Wizard.WizardDialogResult.Cancelled,
+            "Wizard can be postponed without executing installation");
         MenuStrip menu = main.MainMenuStrip!;
         Require(menu.Items.Cast<ToolStripItem>().Select(item => item.Text).SequenceEqual(["&File", "&Channel", "&Repository", "&Tools"]),
             "All requested top-level menus are present");

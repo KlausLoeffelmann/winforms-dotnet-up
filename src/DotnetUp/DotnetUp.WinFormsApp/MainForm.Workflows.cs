@@ -110,7 +110,7 @@ public partial class MainForm
     private async Task RunSetupWizardAsync()
     {
         using SetupWizard wizard = new(_preferences.Channel, Font, SystemInventory.FindDotnetUp() is not null);
-        if (await wizard.ShowAsync(this) != WizardDialogResult.Finished)
+        if (await wizard.ShowSetupAsync(this) != WizardDialogResult.Finished)
         {
             SetStatus("Setup postponed. Use Tools / Setup wizard when ready.");
             return;

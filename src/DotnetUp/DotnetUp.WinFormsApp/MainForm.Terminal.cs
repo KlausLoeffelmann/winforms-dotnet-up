@@ -18,7 +18,7 @@ public partial class MainForm
             await _terminal.StartAsync(_preferences.Shell);
             SetStatus("Terminal ready. Commands run in your user profile unless a repository is selected.");
             await RefreshInventoryAsync();
-            if (!_preferences.SetupCompleted)
+            if (SetupWizard.IsRequired(_preferences, SystemInventory.FindDotnetUp()))
             {
                 await RunWorkflowAsync(RunSetupWizardAsync);
             }
