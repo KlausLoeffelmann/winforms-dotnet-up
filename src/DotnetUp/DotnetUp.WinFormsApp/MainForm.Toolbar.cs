@@ -11,6 +11,7 @@ public partial class MainForm
     {
         SetSymbol(installButton, FluentSymbols.AllSymbols.Add);
         SetSymbol(updateButton, FluentSymbols.AllSymbols.Download);
+        SetSymbol(updateSelectedButton, FluentSymbols.AllSymbols.Download);
         SetSymbol(refreshButton, FluentSymbols.AllSymbols.Refresh);
         SetSymbol(stopButton, FluentSymbols.AllSymbols.Stop);
     }

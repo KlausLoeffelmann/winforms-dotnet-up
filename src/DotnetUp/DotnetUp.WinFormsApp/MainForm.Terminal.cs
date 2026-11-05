@@ -12,6 +12,7 @@ public partial class MainForm
         base.OnShown(e);
         InitializeNavigation();
         _terminal = new HostedTerminal(console);
+        _terminal.BusyChanged += (_, _) => UpdateCommandState();
         console.PromptSubmitted += Console_PromptSubmitted;
         try
         {

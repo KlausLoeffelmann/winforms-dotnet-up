@@ -134,9 +134,14 @@ public partial class MainForm : Form, IServiceProvider
 
     private void UpdateSelectionStatus()
     {
+        UpdateCommandState();
         selectionStatus.Text = details.SelectedRows.Count > 0
             ? details.SelectedRows[0].DataBoundItem?.ToString() ?? navigation.SelectedNode?.Text ?? "System"
             : navigation.SelectedNode?.Text ?? "System";
+        if (details.SelectedRows.Count > 1)
+        {
+            selectionStatus.Text = $"{details.SelectedRows.Count} items selected";
+        }
     }
 
     private void ShowError(string message)

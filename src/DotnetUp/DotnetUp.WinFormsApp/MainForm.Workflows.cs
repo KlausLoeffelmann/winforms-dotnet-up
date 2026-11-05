@@ -22,6 +22,7 @@ public partial class MainForm
         }
 
         _workflowRunning = true;
+        UpdateCommandState();
         try
         {
             await action();
@@ -40,6 +41,7 @@ public partial class MainForm
         finally
         {
             _workflowRunning = false;
+            UpdateCommandState();
         }
     }
 

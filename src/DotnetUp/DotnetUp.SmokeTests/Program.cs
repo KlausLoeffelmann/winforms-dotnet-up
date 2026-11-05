@@ -29,6 +29,7 @@ internal static class Program
                 CheckInventory();
                 CheckRepositoryDiscovery();
                 CheckCommandPlans();
+                CheckSelectedSdkUpdates();
                 foreach (ShellKind shell in args.Contains("--ui-only") ? Array.Empty<ShellKind>() : Enum.GetValues<ShellKind>())
                 {
                     await using HostedTerminal terminal = new(console);
@@ -202,6 +203,32 @@ internal static class Program
         Console.WriteLine("PASS: documented SDK/setup plans, safe defaults and dialog-only channel overrides");
     }
 
+    private static void CheckSelectedSdkUpdates()
+    {
+        DetailRow sdk = new("SDK", "10.0.103", "Managed installation", @"C:\managed", "x64") { Component = "SDK" };
+        DetailRow requirement = new("SDK", "lts", "Tracked requirement", @"N:\private-dotnet", "Explicit")
+        { Component = "SDK", Channel = "lts" };
+        IReadOnlyList<ShellCommand> plan = SelectedSdkUpdates.Plan("dotnetup.exe", [sdk, requirement, sdk]);
+        Require(plan.Count == 2 && plan[0].Arguments.Take(3).SequenceEqual(["sdk", "install", "10.0"])
+            && plan[0].Arguments.Contains(@"C:\managed") && plan[1].Arguments.Contains(@"N:\private-dotnet"),
+            "Multi-select updates target only selected SDK channels and their exact roots, without duplicates");
+        Require(plan.All(command => !command.Arguments.Contains("update") && !command.Arguments.Contains("--all")),
+            "Selected updates never invoke root-wide SDK/runtime updates");
+        Require(!SelectedSdkUpdates.CanUpdate(sdk with { Kind = "External installation" })
+            && !SelectedSdkUpdates.CanUpdate(sdk with { Component = "Runtime" }),
+            "External SDKs and runtimes cannot be updated through SDK selection");
+        try
+        {
+            SelectedSdkUpdates.Plan("dotnetup.exe", [sdk, sdk with { Kind = "External installation" }]);
+            throw new InvalidOperationException("Mixed unsupported selections must be rejected");
+        }
+        catch (ArgumentException)
+        {
+        }
+
+        Console.WriteLine("PASS: strictly selected SDK update scope and read-only external installations");
+    }
+
     private static int RunProbe(string[] args)
     {
         switch (args.FirstOrDefault())
@@ -346,6 +373,22 @@ internal static class Program
         StatusStrip status = Descendants(main).OfType<StatusStrip>().Single();
         Require(status.Items[0].Text?.StartsWith("dotnetup:") == true, "Selected grid row takes status precedence");
         Require(DateTime.TryParse(status.Items[^1].Text, out _), "Far-right status shows date and seconds");
+        ToolStripItem updateSelected = toolbar.Items.Cast<ToolStripItem>().Single(item => item.Text == "Update selected SDKs to latest");
+        Require(!updateSelected.Enabled, "Update selected is disabled for non-SDK selections");
+        grid.DataSource = new List<DetailRow>
+        {
+            new("SDK", "10.0.103", "Managed installation", @"C:\managed", "x64") { Component = "SDK" },
+            new("SDK", "11.0.100", "Managed installation", @"N:\managed", "x64") { Component = "SDK" }
+        };
+        grid.ClearSelection();
+        grid.Rows[0].Selected = true;
+        grid.Rows[1].Selected = true;
+        Require(grid.MultiSelect && updateSelected.Enabled
+            && grid.ContextMenuStrip!.Items.Cast<ToolStripItem>().Single(item => item.Text!.Contains("selected SDKs")).Enabled
+            && ((ToolStripMenuItem)menu.Items[0]).DropDownItems.Cast<ToolStripItem>().Single(item => item.Text!.Contains("selected SDKs")).Enabled,
+            "Multi-select enables matching toolbar, context and menu commands together");
+        grid.ClearSelection();
+        Require(!updateSelected.Enabled, "Clearing SDK selection disables update selected again");
         using (SdkTaskDialog dialog = new("dotnetup.exe", ShellKind.PowerShell, "lts", false, null, null))
         {
             dialog.Show(host);

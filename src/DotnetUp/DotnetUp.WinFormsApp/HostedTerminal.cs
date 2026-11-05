@@ -18,6 +18,7 @@ internal sealed partial class HostedTerminal(D2DConsole console) : IAsyncDisposa
 
     public ShellKind Shell { get; private set; }
     public bool IsBusy => _activeCommand is not null;
+    public event EventHandler? BusyChanged;
 
     public async Task StartAsync(ShellKind shell)
     {
@@ -100,6 +101,7 @@ internal sealed partial class HostedTerminal(D2DConsole console) : IAsyncDisposa
             Directory.CreateDirectory(folder);
             _recording?.Clear();
             _activeCommand = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+            BusyChanged?.Invoke(this, EventArgs.Empty);
             CancellationToken cancellation = _activeCommand.Token;
             string script = BuildScript(command, Shell, resultPath, captureJson ? outputPath : null, nativeCommand);
             if (Shell == ShellKind.CommandPrompt)
@@ -161,6 +163,7 @@ internal sealed partial class HostedTerminal(D2DConsole console) : IAsyncDisposa
         {
             _activeCommand?.Dispose();
             _activeCommand = null;
+            BusyChanged?.Invoke(this, EventArgs.Empty);
             _recording?.Clear();
             try
             {

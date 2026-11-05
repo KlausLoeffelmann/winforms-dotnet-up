@@ -10,6 +10,7 @@ public sealed record DetailRow(string Name, string Value, string Kind, string Lo
     public string Information { get; init; } = "";
     [Browsable(false)] public string? Channel { get; init; }
     [Browsable(false)] public string? Component { get; init; }
+    [Browsable(false)] public string? Architecture { get; init; }
     public override string ToString() => $"{Name}: {Value} - {Location}";
 }
 
@@ -32,6 +33,7 @@ public sealed record ManagedInventory(IReadOnlyList<DetailRow> Specifications, I
             {
                 Channel = Text(item, "versionOrChannel"),
                 Component = Text(item, "component"),
+                Architecture = Text(item, "architecture"),
                 Information = Text(item, "globalJsonPath")
             }).ToArray(),
             installs.EnumerateArray().Select(item => new DetailRow(
@@ -39,6 +41,7 @@ public sealed record ManagedInventory(IReadOnlyList<DetailRow> Specifications, I
                 Text(item, "installRoot"), Text(item, "architecture"))
             {
                 Component = Text(item, "component"),
+                Architecture = Text(item, "architecture"),
                 Information = item.TryGetProperty("isValid", out JsonElement validity) ? validity.ValueKind switch
                 {
                     JsonValueKind.True => "Verified",
