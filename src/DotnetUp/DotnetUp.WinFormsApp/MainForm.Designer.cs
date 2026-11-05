@@ -16,6 +16,7 @@ partial class MainForm
         {
             _uiFont?.Dispose();
             _consoleFont?.Dispose();
+            DisposeToolbarFonts();
         }
     }
 
@@ -37,26 +38,26 @@ partial class MainForm
         ToolStripMenuItem environmentItem = new ToolStripMenuItem("Show &environment");
         ToolStripMenuItem infoItem = new ToolStripMenuItem("dotnetup &information");
         ToolStripMenuItem selfUpdateItem = new ToolStripMenuItem("Update &dotnetup...");
-        ToolStripMenuItem rescanItem = new ToolStripMenuItem("Reset repository &discovery");
+        ToolStripMenuItem rescanItem = new ToolStripMenuItem("Reset repository discover&y");
         ToolStripMenuItem repositoryMenu = new ToolStripMenuItem("&Repository");
         ToolStripMenuItem repoInstallItem = new ToolStripMenuItem("&Install SDK from global.json...");
         ToolStripMenuItem repoTerminalItem = new ToolStripMenuItem("Use repository in &terminal");
         ToolStripMenuItem repoFolderItem = new ToolStripMenuItem("Open &folder");
         ToolStripMenuItem repoJsonItem = new ToolStripMenuItem("Open &global.json");
         ContextMenuStrip repositoryContext = new ContextMenuStrip(components);
-        ToolStripMenuItem contextInstall = new ToolStripMenuItem("Install SDK...");
-        ToolStripMenuItem contextTerminal = new ToolStripMenuItem("Use repository in terminal");
-        ToolStripMenuItem contextFolder = new ToolStripMenuItem("Open folder");
-        ToolStripMenuItem contextJson = new ToolStripMenuItem("Open global.json");
+        ToolStripMenuItem contextInstall = new ToolStripMenuItem("&Install SDK...");
+        ToolStripMenuItem contextTerminal = new ToolStripMenuItem("Use repository in &terminal");
+        ToolStripMenuItem contextFolder = new ToolStripMenuItem("Open &folder");
+        ToolStripMenuItem contextJson = new ToolStripMenuItem("Open &global.json");
         ContextMenuStrip detailContext = new ContextMenuStrip(components);
-        ToolStripMenuItem contextUpdate = new ToolStripMenuItem("Update SDKs...");
-        ToolStripMenuItem contextUninstall = new ToolStripMenuItem("Uninstall tracked requirement...");
-        ToolStripMenuItem contextDetailFolder = new ToolStripMenuItem("Open folder");
-        toolbar = new ToolStrip();
-        ToolStripButton installButton = new ToolStripButton("Install SDK");
-        ToolStripButton updateButton = new ToolStripButton("Update SDKs");
-        ToolStripButton refreshButton = new ToolStripButton("Refresh");
-        ToolStripButton stopButton = new ToolStripButton("Stop");
+        ToolStripMenuItem contextUpdate = new ToolStripMenuItem("&Update SDKs...");
+        ToolStripMenuItem contextUninstall = new ToolStripMenuItem("Uninstall tracked &requirement...");
+        ToolStripMenuItem contextDetailFolder = new ToolStripMenuItem("Open &folder");
+        toolbar = new WarpToolkit.WinForms.ToolStrips.SymbolToolStrip();
+        installButton = new WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton("Install SDK");
+        updateButton = new WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton("Update SDKs");
+        refreshButton = new WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton("Refresh");
+        stopButton = new WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton("Stop");
         status = new StatusStrip();
         selectionStatus = new ToolStripStatusLabel("System");
         channelStatus = new ToolStripStatusLabel("Channel: lts");
@@ -79,11 +80,14 @@ partial class MainForm
         ((System.ComponentModel.ISupportInitialize)details).BeginInit();
         SuspendLayout();
         installItem.Click += Install_Click;
+        installItem.ShortcutKeys = Keys.Control | Keys.I;
         updateItem.Click += Update_Click;
+        updateItem.ShortcutKeys = Keys.Control | Keys.U;
         uninstallItem.Click += Uninstall_Click;
         exitItem.Click += Exit_Click;
         fileMenu.DropDownItems.AddRange(new ToolStripItem[] { installItem, updateItem, uninstallItem, new ToolStripSeparator(), exitItem });
         optionsItem.Click += Options_Click;
+        optionsItem.ShortcutKeys = Keys.Control | Keys.Oemcomma;
         toolsMenu.DropDownItems.Add(optionsItem);
         restartItem.Click += RestartTerminal_Click;
         toolsMenu.DropDownItems.Add(restartItem);
@@ -116,7 +120,22 @@ partial class MainForm
         stopButton.Click += Stop_Click;
         toolbar.Items.AddRange(new ToolStripItem[] { installButton, updateButton, new ToolStripSeparator(), refreshButton, stopButton });
         toolbar.Dock = DockStyle.Top;
+        toolbar.AutoSize = true;
+        toolbar.LayoutStyle = ToolStripLayoutStyle.HorizontalStackWithOverflow;
         toolbar.GripStyle = ToolStripGripStyle.Hidden;
+        toolbar.AccessibleName = "SDK actions";
+        installButton.DisplayStyle = ToolStripItemDisplayStyle.Image;
+        installButton.AccessibleName = "Install global SDK";
+        installButton.ToolTipText = "Install global SDK (Ctrl+I)";
+        updateButton.DisplayStyle = ToolStripItemDisplayStyle.Image;
+        updateButton.AccessibleName = "Update existing SDKs";
+        updateButton.ToolTipText = "Update existing SDKs (Ctrl+U)";
+        refreshButton.DisplayStyle = ToolStripItemDisplayStyle.Image;
+        refreshButton.AccessibleName = "Refresh SDK inventory";
+        refreshButton.ToolTipText = "Refresh SDK inventory";
+        stopButton.DisplayStyle = ToolStripItemDisplayStyle.Image;
+        stopButton.AccessibleName = "Stop command or repository scan";
+        stopButton.ToolTipText = "Stop command or repository scan";
         status.Items.AddRange(new ToolStripItem[] { selectionStatus, channelStatus, messageStatus, clockStatus });
         status.ShowItemToolTips = true;
         selectionStatus.AutoSize = false;
@@ -160,6 +179,7 @@ partial class MainForm
         details.CellMouseDown += Details_CellMouseDown;
         console.Dock = DockStyle.Fill;
         console.AccessibleName = "Hosted command terminal";
+        console.AccessibleDescription = "Enter commands in the prompt. SDK operations and their output appear here.";
         clockTimer.Interval = 1000;
         clockTimer.Tick += ClockTimer_Tick;
         AutoScaleDimensions = new SizeF(8F, 20F);
@@ -190,6 +210,10 @@ partial class MainForm
     private MenuStrip menu = null!;
     private ToolStripMenuItem channelMenu = null!;
     private ToolStrip toolbar = null!;
+    private WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton installButton = null!;
+    private WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton updateButton = null!;
+    private WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton refreshButton = null!;
+    private WarpToolkit.WinForms.ToolStrips.SymbolToolStripButton stopButton = null!;
     private StatusStrip status = null!;
     private ToolStripStatusLabel selectionStatus = null!;
     private ToolStripStatusLabel channelStatus = null!;

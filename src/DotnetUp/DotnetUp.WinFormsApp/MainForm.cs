@@ -16,6 +16,7 @@ public partial class MainForm : Form, IServiceProvider
     public MainForm()
     {
         InitializeComponent();
+        InitializeToolbarSymbols();
         foreach (string channel in SdkChannels.Named)
         {
             ToolStripMenuItem item = new(channel) { Tag = channel };

@@ -8,12 +8,12 @@ internal sealed partial class SetupWizard : Form
 {
     private readonly List<(string Title, Control Content)> _pages = [];
     private int _pageIndex;
-    private readonly ComboBox _channel = new() { DropDownStyle = ComboBoxStyle.DropDownList, Anchor = AnchorStyles.Left | AnchorStyles.Right };
-    private readonly ComboBox _mode = new() { DropDownStyle = ComboBoxStyle.DropDownList, Anchor = AnchorStyles.Left | AnchorStyles.Right };
-    private readonly CheckBox _onPath = new() { Text = "Add dotnetup to PATH (opt-in)", AutoSize = true };
-    private readonly CheckBox _migrate = new() { Text = "Migrate matching system SDKs into dotnetup", AutoSize = true };
-    private readonly CheckBox _install = new() { Text = "Install an initial SDK", Checked = true, AutoSize = true };
-    private readonly TextBox _review = new() { Multiline = true, ReadOnly = true, Dock = DockStyle.Fill, ScrollBars = ScrollBars.Vertical };
+    private readonly ComboBox _channel = new() { DropDownStyle = ComboBoxStyle.DropDownList, Anchor = AnchorStyles.Left | AnchorStyles.Right, AccessibleName = "Initial SDK channel" };
+    private readonly ComboBox _mode = new() { DropDownStyle = ComboBoxStyle.DropDownList, Anchor = AnchorStyles.Left | AnchorStyles.Right, AccessibleName = "Managed .NET access mode" };
+    private readonly CheckBox _onPath = new() { Text = "Add dotnetup to &PATH (opt-in)", AutoSize = true, Appearance = Appearance.ToggleSwitch, Margin = new Padding(3, 8, 3, 8) };
+    private readonly CheckBox _migrate = new() { Text = "&Migrate matching system SDKs into dotnetup", AutoSize = true, Appearance = Appearance.ToggleSwitch, Margin = new Padding(3, 8, 3, 8) };
+    private readonly CheckBox _install = new() { Text = "&Install an initial SDK", Checked = true, AutoSize = true, Appearance = Appearance.ToggleSwitch, Margin = new Padding(3, 8, 3, 8) };
+    private readonly TextBox _review = new() { Multiline = true, ReadOnly = true, Dock = DockStyle.Fill, ScrollBars = ScrollBars.Vertical, AccessibleName = "Setup command review" };
 
 
     public SetupWizard(string defaultChannel, Font font, bool alreadyInstalled)
@@ -43,10 +43,10 @@ internal sealed partial class SetupWizard : Form
 
         _mode.SelectedIndex = 0;
 
-        settings.Controls.Add(Paragraph("Initial SDK channel:"));
+        settings.Controls.Add(Paragraph("Initial SDK c&hannel:"));
         settings.Controls.Add(_channel);
         settings.Controls.Add(_install);
-        settings.Controls.Add(Paragraph("How applications find the managed .NET installation:"));
+        settings.Controls.Add(Paragraph("How applications &find the managed .NET installation:"));
         settings.Controls.Add(_mode);
         settings.Controls.Add(_onPath);
         settings.Controls.Add(_migrate);

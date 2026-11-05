@@ -85,7 +85,7 @@ partial class TerminalOptionsPage
         uiBrowse.AccessibleName = "Choose interface font";
         uiBrowse.TabIndex = 1;
         uiBrowse.Click += UiFont_Click;
-        consoleFontLabel.Text = "&Console font:";
+        consoleFontLabel.Text = "Console &font:";
         consoleFontLabel.AutoSize = true;
         consoleFontLabel.Dock = DockStyle.Fill;
         consoleFontLabel.TextAlign = ContentAlignment.MiddleLeft;

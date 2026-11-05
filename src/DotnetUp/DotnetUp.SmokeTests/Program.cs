@@ -17,6 +17,7 @@ internal static class Program
 
         Application.SetHighDpiMode(HighDpiMode.SystemAware);
         Application.EnableVisualStyles();
+        Application.SetDefaultVisualStylesMode(VisualStylesMode.Net11);
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
         using Form host = new() { Width = 900, Height = 600, Text = "dotnetup regression checks" };
         D2DConsole console = new() { Dock = DockStyle.Fill };
@@ -297,6 +298,8 @@ internal static class Program
         Button next = Descendants(wizard).OfType<Button>().Single(button => button.Text == "&Next");
         next.PerformClick();
         Require(Descendants(wizard).OfType<ComboBox>().All(box => box.Visible), "Wizard navigates to setup choices");
+        Require(Descendants(wizard).OfType<CheckBox>().All(box => box.Appearance == Appearance.ToggleSwitch),
+            "Setup options use .NET 11 toggle switches");
         next.PerformClick();
         string review = Descendants(wizard).OfType<TextBox>().Single(box => box.Multiline).Text;
         Require(review.Contains("env") && review.Contains("none") && !review.Contains("'everywhere'"),
@@ -325,6 +328,13 @@ internal static class Program
         ToolStripMenuItem channels = (ToolStripMenuItem)menu.Items[1];
         Require(channels.DropDownItems.OfType<ToolStripMenuItem>().Single(item => item.Checked).Text == "lts",
             "LTS is the conservative default");
+        ToolStrip toolbar = Descendants(main).OfType<ToolStrip>().Single(strip => strip is not MenuStrip && strip is not StatusStrip);
+        Require(toolbar.Items.OfType<ToolStripButton>().All(button =>
+            button.Image is not null && button.DisplayStyle == ToolStripItemDisplayStyle.Image
+            && !string.IsNullOrWhiteSpace(button.AccessibleName) && !string.IsNullOrWhiteSpace(button.ToolTipText)),
+            "Toolbar commands have images, accessible names and explanatory tooltips");
+        Require(toolbar.AutoSize && toolbar.LayoutStyle == ToolStripLayoutStyle.HorizontalStackWithOverflow,
+            "Toolbar uses an autosizing mixed-item layout with overflow");
         TreeView tree = Descendants(main).OfType<TreeView>().Single();
         Require(tree.Nodes[0].Text == "System"
             && tree.Nodes[0].Nodes.Cast<TreeNode>().Select(node => node.Text).SequenceEqual(["GAC", ".NET SDKs", "Drive C", "Drive N"]),
@@ -345,6 +355,8 @@ internal static class Program
             Require(Descendants(dialog).OfType<Button>().Where(button => button.Text is "&Run" or "Cancel")
                 .All(button => button.Visible && dialog.ClientRectangle.Contains(dialog.RectangleToClient(button.RectangleToScreen(button.ClientRectangle)))),
                 "Install dialog actions remain in the client area");
+            Require(Descendants(dialog).OfType<CheckBox>().All(box => box.Appearance == Appearance.ToggleSwitch),
+                "SDK options use .NET 11 toggle switches");
             dialog.Close();
         }
 
