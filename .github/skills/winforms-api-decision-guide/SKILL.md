@@ -23,7 +23,9 @@ description: >-
 | Request | Read when this work is required |
 |---|---|
 | New application/library, target/framework choice, startup, ordinary C#/VB conventions | [Development](../winforms-development/SKILL.md) |
-| Settings dialog, preferences page, customer entry, labels clipped by larger text, resizing/DPI, button footer | [Layout](../winforms-high-dpi-fluent-layout/SKILL.md); [Designer](../winforms-designer-code/SKILL.md) when creating/editing static Forms or UserControls |
+| Tools/Options, preferences categories, font/file/color picker settings | [Options dialogs](../winforms-options-dialog/SKILL.md), plus layout and Designer; with WARP also load `warp-fluent-tab-control` |
+| Command toolbar icons, mixed ToolStrip buttons/labels/editors, image factory without WARP | [ToolStrip icons](../winforms-toolstrip-icons/SKILL.md); with WARP use `warp-toolstrip-icons` |
+| Customer entry, labels clipped by larger text, resizing/DPI, button footer | [Layout](../winforms-high-dpi-fluent-layout/SKILL.md); [Designer](../winforms-designer-code/SKILL.md) when creating/editing static Forms or UserControls |
 | Reusable address editor, wizard/tab content, custom badge/slider, control property | [Custom/UserControls](../winforms-custom-and-usercontrols/SKILL.md); layout for composition, Designer for property serialization |
 | Save/search binding, current customer/orders, list updates, validation/ErrorProvider | [Databinding](../winforms-databinding/SKILL.md) |
 | Testable screen state, command-enabled buttons/menus, shared ViewModels | [MVVM](../winforms-mvvm/SKILL.md); databinding for collection/currency/writeback |
@@ -34,7 +36,7 @@ description: >-
 | Offline maps, geocoding/routes, embedded online map | [Windows Maps](../winforms-windows-maps/SKILL.md) |
 | Explicit .NET 11 renderer, toggle appearance, kiosk, visual accessibility state, painting suspension | [.NET 11 APIs](../winforms-net11-apis/SKILL.md); domain owner still governs layout/lifetime |
 
-Examples: a “customer preferences dialog with larger text and save validation” needs layout + Designer + binding, not every skill. A “worker loading customers into a grid” needs async + binding and layout only if changing its viewport.
+Examples: a “customer preferences dialog with larger text and save validation” needs options + layout + Designer + binding, not every skill. A “worker loading customers into a grid” needs async + binding and layout only if changing its viewport.
 
 ## Version and capability decisions
 

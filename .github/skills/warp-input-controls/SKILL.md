@@ -24,6 +24,9 @@ metadata:
   and caption contracts by reference.
 - Inspect installed versions: experimental selection and typed/AI formatter contracts
   may differ from source; decimal money is not a binary floating-point slider.
+- In Tools/Options, `winforms-options-dialog` owns the visible caption/value/picker
+  layout, editor selection, row spacing and draft cancellation. A WARP control
+  does not waive those ergonomic/accessibility rules.
 
 ## Picker inventory
 

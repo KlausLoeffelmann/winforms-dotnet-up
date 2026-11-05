@@ -35,6 +35,7 @@ when no direct framework row fits.
 | New app or retrofit to DI/configuration/logging/host lifetime | WinForms.AppServices; `Microsoft.Extensions.WinForms.WinFormsApplication.CreateBuilder` | `warp-winforms-application-builder` |
 | ViewModel confirmation/input/selection/modal dialog; settings, API keys, exception hooks | Desktop.AppServices + WinForms.AppServices; `IDialogService`, `IUserSettingsService`, `EnvironmentVariableKeyService` | `warp-app-services` |
 | Navigation/settings/diagnostics tabs | WinForms; `FluentTabControl`, one UserControl per tab | `warp-fluent-tab-control` |
+| Tools/Options categories and ergonomic setting editors | WinForms; `FluentTabControl` plus standard or WARP inputs | `winforms-options-dialog` + `warp-fluent-tab-control`; persistence uses `warp-app-services` |
 | First-run/account/setup wizard | WinForms; `WizardContainer.AddWizardPage` | `warp-wizard` |
 | UI-side themed messages | WinForms; `FluentMessageBox` | `warp-messaging` |
 | File/folder/save picker, bound selection, fractional slider, date/time/money formatting | WinForms + optional WinForms.Async; `FilePathPicker`, `BindableComboBox`, typed formatter components | `warp-input-controls` |
@@ -63,6 +64,8 @@ Package names above abbreviate the `WarpToolkit.` prefix.
 |---|---|
 | Project/startup without WARP hosting | `winforms-development` |
 | Modal/UserControl layout, DPI, grouped fields, button footer, scrolling/fullscreen layout | `winforms-high-dpi-fluent-layout` |
+| Shared options categories, value/picker layout, typed setting selection | `winforms-options-dialog` |
+| Shared icon-first/mixed-item ToolStrip, keyboard and accessible command rules | `winforms-toolstrip-icons`; WARP implementation uses `warp-toolstrip-icons` |
 | Designer serialization and InitializeComponent | `winforms-designer-code` |
 | InvokeAsync, async form/TaskDialog presentation | `winforms-async-apis` |
 | Native COM apartment and cross-thread lifetime | `winforms-com-apartments` |

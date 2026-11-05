@@ -13,6 +13,14 @@ metadata:
 
 ## Critical constraints
 
+- Command ToolStrips have icons by default; image-only commands retain semantic
+  Text, ToolTipText and AccessibleName. Text-only caption labels beside editors
+  and category/tab headers are intentional exceptions.
+- Shared icon-first, mixed-item, accelerator and accessibility policy belongs to
+  `winforms-toolstrip-icons`. For horizontal mixed button/label/TextBox/ComboBox
+  strips explicitly set AutoSize=true and
+  LayoutStyle=HorizontalStackWithOverflow; do not force a clipping height.
+
 - Owner-inferred ConfigureItem requires Owner; the **explicit renderingHost overload**
   supports detached items without changing ownership **in audited source**.
   Local prebuilt .NET10/.NET11 DLLs lacked that overload; verify/rebuild the matching
@@ -38,6 +46,10 @@ image/font lifetimes. Verify those types in the installed public assembly.
 
 The helper below instead configures ordinary ToolStripItem.Image from an Enum.
 It does not accept ISymbol or automatically join the unified symbol-item cache.
+
+Prefer installed symbol hosts when available: they preserve theme/DPI refresh and
+item image ownership. For an app without WARP, `winforms-toolstrip-icons` owns a
+small local symbol-font image factory; do not add WARP solely to obtain four icons.
 
 ## API and workflow
 

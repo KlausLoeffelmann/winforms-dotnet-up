@@ -39,6 +39,14 @@ Large entry forms: root has **1, 2 or 3 Percent GroupBox columns** by logical se
 
 Radio choices: single-column table, AutoSize rows, inside one AutoSize/GrowAndShrink GroupBox; keep mutually exclusive buttons within the same group. Break a large screen into sections/UserControls, not one mega-grid. Tool/status strips use AutoSize rows around a Percent split/viewport area.
 
+Tools/Options category hosts, editor selection and the exact nested
+`Caption | [value] [...]` picker contract belong to
+[options dialogs](../winforms-options-dialog/SKILL.md). Keep logical option rows
+visibly separated with control Margins; GroupBoxes organize larger option sets.
+For icon-first toolbars and mixed ToolStrip button/label/editor layouts use
+[ToolStrip icons](../winforms-toolstrip-icons/SKILL.md); do not constrain the strip
+below its items' preferred heights.
+
 Percent columns distribute available width; AutoSize tables still measure child preferred widths. These design preferences are not a claim that the allocation engine measures Percent before AutoSize/Absolute cells.
 
 ## Exact standard modal button footer — profile B
@@ -68,6 +76,10 @@ Use 96 DPI/100% as a deliberate new-design baseline; preserve existing `AutoScal
 Derive useful minimum space from current font, content, operation and monitor working area. Viewports need enough visible lines/items/columns to work; no one-size-fits-all pixel minimum. If content exceeds a monitor, use a deliberate scrollable host/adapted layout and keep actions keyboard-reachable. Reevaluate on font/DPI/monitor changes; don't clamp below necessary content and simply hide overflow.
 
 Provide `AccessibleName`/`AccessibleDescription`, sensible TabIndex/mnemonics, and Tab/Shift+Tab/Enter/Escape paths. Test longest translations rather than assuming particular languages always dominate.
+
+Prioritize accelerators on frequently used menus and semantic names on inputs and
+icon/picker actions. Descriptions supply only missing context; do not repeat every
+caption or make decorative controls/status clocks noisy live announcements.
 
 Read [window state and monitor handling](references/window-state.md) when persisting bounds or implementing fullscreen. Designer visual inheritance can lock a base Form's TableLayoutPanel; use a supported composition boundary rather than assuming an inherited grid is editable.
 

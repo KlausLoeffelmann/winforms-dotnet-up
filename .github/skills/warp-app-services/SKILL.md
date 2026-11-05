@@ -22,6 +22,9 @@ metadata:
   use `ISyncContextService` for UI coordination rather than reading OpenForms in a VM.
 - Shared modal layout and async boundaries belong to
   `winforms-high-dpi-fluent-layout` and `winforms-async-apis`.
+- For Tools/Options, load `winforms-options-dialog` and `warp-fluent-tab-control`.
+  Use separate category UserControls with the shared ergonomic picker/grouping
+  rules; save validated accepted drafts only, not cancelled dialog/picker state.
 
 ## Registration and contracts
 

@@ -17,6 +17,9 @@ metadata:
 - Result values are **Finished/Cancelled/None**, not Completed.
 - Validation/leaving handlers must set Cancel=true to block navigation.
 - Await wizard/navigation Tasks; do not block the UI.
+- Show first-run setup only when required by actual prerequisites and saved state;
+  an already usable installation must not be forced through setup merely because
+  this app has no completion record. Keep an explicit manual setup command.
 - Page/layout/Designer rules belong to `winforms-high-dpi-fluent-layout` and
   `winforms-designer-code`. Existing internal fixed-button implementation is not
   a recipe to copy; do not invent a public layout knob to replace it.
@@ -74,6 +77,14 @@ The dialog computes/scales its size with DeviceDpi/96; Automatic uses larger but
 above 120 DPI. Default title font is a derived bold font; custom fonts need an owner.
 Test actual shipped wizard layout at target DPI rather than claiming it automatically
 matches newly authored canonical modal layouts.
+
+Fixed-height native wizard buttons can clip modern renderer metrics or large
+fonts. Increasing the Form size alone does not fix a fixed-height footer. If the
+consuming package has no supported adaptive footer API, prefer a library fix;
+otherwise an explicitly app-owned Designer-compatible wizard dialog may use the
+canonical modal footer. Preserve page navigation/review/cancel semantics and the
+Finish-only commit gate. Do not reflect into private fields, reparent internal
+library buttons or invent an unverified public layout property.
 
 ## Final checks
 

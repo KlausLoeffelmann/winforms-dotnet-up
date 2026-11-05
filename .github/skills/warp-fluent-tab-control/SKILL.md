@@ -18,6 +18,10 @@ metadata:
   control and separate UserControls; use `winforms-designer-code`.
 - Shared UserControl/group/field layout belongs to `winforms-high-dpi-fluent-layout`.
   Tab host caps below are WARP-specific, not a button-width workaround.
+- Tools/Options must also load `winforms-options-dialog`: category grouping,
+  label/value controls, nested value/picker tables, row spacing, accessibility
+  and draft commit/cancel rules are identical with or without WARP. Use this
+  FluentTabControl instead of native TabControl styling or a custom emulation.
 - Capture natural content size **before docking**; scrolling belongs to the
   UserControl/content viewport, never the tab strip itself.
 - DI-aware tabs use `warp-winforms-application-builder`; do not duplicate its
@@ -40,6 +44,11 @@ FluentTabControl derives Panel:
 There is no TabPage type or documented SelectedTab binding property.
 AddTab wraps content in a Panel, docks it Fill and adds a MenuStrip header item.
 Header font tracks Font+1pt; header rendering chooses light/dark styling.
+
+Category headers are deliberately text-based, not ordinary icon commands.
+Keep meaningful names, keyboard focus/activation and selected-category indication;
+verify the installed renderer at large fonts and High Contrast. Do not replace
+its navigation solely to paint another selection underline.
 
 ```csharp
 // Regular OnLoad/configuration; each view is a Designer-created UserControl.

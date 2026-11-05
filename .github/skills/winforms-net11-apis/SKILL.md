@@ -28,7 +28,18 @@ Modern painting/metrics cover supported Button/CheckBox/RadioButton/GroupBox/Tex
 
 `FormRevealMode.Deferred` and `Application.SetDefaultFormRevealMode` reduce initial reveal flash. Reveal default may be changed; untouched inherited defaults in dark-mode apps resolve according to framework policy. Choose deliberately and test startup; don't assume painting is cost-free.
 
-`Appearance.ToggleSwitch` exists in the verified surface. Use supported toggle controls for immediate binary settings, not submission or multi-step actions; verify control renderer support rather than inferring every `Appearance` consumer implements it.
+`Appearance.ToggleSwitch` exists in the verified surface; **the enum name is not
+Toggle**. For CheckBoxes representing ordinary boolean options, set
+`Appearance = Appearance.ToggleSwitch` when the effective renderer supports
+Net11/Latest. This also applies to a draft in an OK/Cancel options dialog: the
+toggle edits that draft and does not bypass the commit gate. Toggles are not
+submission or multi-step action buttons.
+
+Verify the actual CheckBox renderer support; do not infer that every Appearance
+consumer supports it. Do not numerically compare the raw inherited
+VisualStylesMode with Net11. Older/classic targets retain their supported normal
+CheckBox appearance. Options composition/commit rules belong to
+[options dialogs](../winforms-options-dialog/SKILL.md).
 
 ## System state, batching and kiosk
 

@@ -18,6 +18,17 @@ description: >-
 - Configure DPI/default font once, before creating windows; use generated application defaults rather than conflicting later calls.
 - Pin compatible stable dependencies using the repository's package policy. Do not publish unbounded package ranges.
 - Report exceptions appropriately; application-wide logging is not a guarantee of safe recovery.
+- Launch setup/first-run wizards only when setup is actually required. Inspect
+  usable existing state as well as saved completion; keep manual setup available
+  and never turn a dismissed wizard into permission to modify the machine.
+- Every WinForms app needs menu accelerators and concise, useful accessibility
+  metadata. Name inputs/icon actions and add descriptions only for missing context,
+  not redundant narration of every label or clock tick.
+
+Tools/Options use [category composition](../winforms-options-dialog/SKILL.md),
+not one monolithic Form or a styled native TabControl. Command ToolStrips default
+to icons under [ToolStrip rules](../winforms-toolstrip-icons/SKILL.md); WARP apps
+use their existing symbol hosts.
 
 ## Project and startup
 
